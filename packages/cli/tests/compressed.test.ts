@@ -48,7 +48,9 @@ describe("compressed input", () => {
     try {
       const file = join(dir, "bad.log.gz");
       await writeFile(file, Buffer.from("definitely not gzip"));
-      expect(await readLogFile(file).catch((e) => e as Error)).toMatch(/corrupt|could not read/);
+      const err = (await readLogFile(file).catch((e) => e as Error)) as Error;
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/corrupt gzip/);
     } finally {
       await rm(dir, { recursive: true });
     }

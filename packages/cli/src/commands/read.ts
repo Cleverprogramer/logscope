@@ -1,7 +1,7 @@
-import chalk from "chalk";
 import type { Command } from "commander";
+import { painter } from "../color.js";
 import { applyFilter, type LevelFilterOptions } from "../filter.js";
-import { assertTimeZone, formatEntry, formatGroups, formatSummary } from "../format.js";
+import { assertTimeZone, formatEntry, formatEntryJson, formatGroups, formatSummary } from "../format.js";
 import { groupEntries } from "../grouping/index.js";
 import { readLogFile } from "../reader.js";
 
@@ -12,11 +12,17 @@ export interface ReadOptions extends LevelFilterOptions {
   top?: string;
   /** IANA timezone for displayed timestamps, e.g. America/New_York. */
   tz?: string;
+  /** Output format: human "text" (default) or machine "jsonl". */
+  out?: string;
 }
 
 /** `logscope read <file>` — parse a file and print color-coded entries. */
 export async function readCommand(file: string, options: ReadOptions): Promise<void> {
   const tz = options.tz ? assertTimeZone(options.tz) : undefined;
+  const jsonl = options.out === "jsonl";
+  if (options.out && options.out !== "jsonl" && options.out !== "text") {
+    throw new Error(`Invalid --out "${options.out}". Use "text" or "jsonl".`);
+  }
   const result = await readLogFile(file);
 
   // Filters are applied to parsed output; unparsed lines only survive when no
@@ -24,10 +30,10 @@ export async function readCommand(file: string, options: ReadOptions): Promise<v
   const filtered = applyFilter(result.entries, options);
 
   for (const entry of filtered) {
-    console.log(formatEntry(entry, tz));
+    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz));
   }
 
-  if (!options.quiet) {
+  if (!options.quiet && !jsonl) {
     console.log(
       formatSummary({
         totalLines: filtered.length,
@@ -36,14 +42,14 @@ export async function readCommand(file: string, options: ReadOptions): Promise<v
     );
   }
 
-  if (options.top !== undefined) {
+  if (options.top !== undefined && !jsonl) {
     const topN = Number.parseInt(options.top ?? "10", 10);
     if (Number.isNaN(topN) || topN < 0) {
       throw new Error(`Invalid --top value "${options.top}". Use a non-negative number.`);
     }
     const groups = groupEntries(filtered);
     if (groups.length > 0) {
-      console.log(chalk.dim(`\n── top ${Math.min(topN, groups.length)} message group(s) ──`));
+      console.log(painter().dim(`\n── top ${Math.min(topN, groups.length)} message group(s) ──`));
       for (const line of formatGroups(groups, topN)) console.log(line);
     }
   }
@@ -62,13 +68,14 @@ export function registerReadCommand(program: Command): void {
       'only entries after this time: "30s", "5m", "2h", "7d" or an ISO date',
     )
     .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
+    .option("--out <format>", 'output format: "text" (default) or "jsonl"')
     .option("-q, --quiet", "hide the summary line")
     .option("-t, --top <n>", "show the N most frequent message groups", "10")
     .action(async (file: string, options: ReadOptions) => {
       try {
         await readCommand(file, options);
       } catch (error) {
-        console.error(chalk.red(`error:`), error instanceof Error ? error.message : error);
+        console.error(painter().red(`error:`), error instanceof Error ? error.message : error);
         process.exitCode = 1;
       }
     });
