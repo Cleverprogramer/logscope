@@ -7,6 +7,7 @@ import { followLines } from "../tailer.js";
 import type { LogEntry } from "../types.js";
 import { assertTimeZone, formatEntry, formatEntryJson } from "../format.js";
 import { painter } from "../color.js";
+import { ringBell, sendNotification } from "../notify.js";
 
 export interface TailOptions {
   /** Start by showing the last N existing lines (tail -n behavior). */
@@ -19,6 +20,8 @@ export interface TailOptions {
   tz?: string;
   /** Output format: "text" (default) or "jsonl". */
   out?: string;
+  /** OS-notify + bell when the alert threshold trips. */
+  notify?: boolean;
 }
 
 const DEFAULT_BACKREAD_LINES = 10;
@@ -105,11 +108,18 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
       }
       if (recentErrorTimes.length >= alertThreshold && now - lastAlertAt >= ALERT_COOLDOWN_MS) {
         lastAlertAt = now;
+        ringBell();
         console.log(
           chalk.bgRed.white.bold(
             ` ⚠ ALERT: ${recentErrorTimes.length} errors in the last 60s (threshold ${alertThreshold}) `,
           ),
         );
+        if (options.notify) {
+          sendNotification(
+            "logscope: ERROR spike",
+            `${recentErrorTimes.length} errors in the last 60s while tailing ${file}`,
+          );
+        }
       }
     }
   }
@@ -144,6 +154,7 @@ export function registerTailCommand(program: Command): void {
     )
     .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
     .option("--out <format>", 'output format: "text" (default) or "jsonl"')
+    .option("--notify", "send OS notifications when alerts fire")
     .action(async (file: string, options: TailOptions) => {
       try {
         await tailCommand(file, options);
