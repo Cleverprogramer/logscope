@@ -135,7 +135,7 @@ export function registerStatsCommand(program: Command): void {
   program
     .command("stats")
     .description("Print a one-shot summary report for a log file")
-    .argument("<file>", "path to the log file")
+    .argument("<file>", "path to the log file, or \"-\" for stdin")
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
     .option("--top <n>", "max message groups to show", "10")
