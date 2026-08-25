@@ -11,6 +11,7 @@ import { registerLatencyCommand } from "./commands/latency.js";
 import { registerAdviseCommand } from "./commands/advise.js";
 import { registerExplainCommand } from "./commands/explain.js";
 import { registerDiffCommand } from "./commands/diff.js";
+import { registerCompletionCommand } from "./commands/completion.js";
 
 const program = new Command();
 
@@ -29,6 +30,7 @@ registerLatencyCommand(program);
 registerAdviseCommand(program);
 registerExplainCommand(program);
 registerDiffCommand(program);
+registerCompletionCommand(program);
 registerDashboardCommand(program);
 
 program.parse(process.argv);
