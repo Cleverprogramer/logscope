@@ -15,6 +15,8 @@ export interface ReadOptions extends LevelFilterOptions {
   tz?: string;
   /** Output format: human "text" (default) or machine "jsonl". */
   out?: string;
+  /** Custom line template, e.g. "{timestamp} [{level}] {message}". */
+  format?: string;
 }
 
 /** `logscope read <files...>` — parse file(s)/globs/stdin and print entries. */
@@ -25,7 +27,9 @@ export async function readCommand(files: string[], options: ReadOptions): Promis
   if (options.out && options.out !== "jsonl" && options.out !== "text") {
     throw new Error(`Invalid --out "${options.out}". Use "text" or "jsonl".`);
   }
-  const result = await readLogFiles(files);
+  const result = await readLogFiles(files, {
+    formatTemplate: options.format,
+  });
   const showSource = result.entries.some((e) => e.source !== undefined);
 
   // Filters are applied to parsed output; unparsed lines only survive when no
@@ -72,6 +76,10 @@ export function registerReadCommand(program: Command): void {
     )
     .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
     .option("--out <format>", 'output format: "text" (default) or "jsonl"')
+    .option(
+      "--format <template>",
+      'custom line template, e.g. "{timestamp} [{level}] {message}"',
+    )
     .option("-q, --quiet", "hide the summary line")
     .option("-t, --top <n>", "show the N most frequent message groups", "10")
     .action(async (files: string[], options: ReadOptions) => {
