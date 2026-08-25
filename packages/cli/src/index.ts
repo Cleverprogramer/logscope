@@ -13,6 +13,7 @@ import { registerAdviseCommand } from "./commands/advise.js";
 import { registerExplainCommand } from "./commands/explain.js";
 import { registerDiffCommand } from "./commands/diff.js";
 import { registerCompletionCommand } from "./commands/completion.js";
+import { registerServeCommand } from "./commands/serve.js";
 
 const program = new Command();
 
@@ -32,6 +33,7 @@ registerAdviseCommand(program);
 registerExplainCommand(program);
 registerDiffCommand(program);
 registerCompletionCommand(program);
+registerServeCommand(program);
 registerDashboardCommand(program);
 
 program.parse(process.argv);
