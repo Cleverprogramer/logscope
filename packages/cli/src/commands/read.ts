@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { painter } from "../color.js";
+import { applyConfigDefaults, getConfig } from "../config.js";
 import { applyFilter, type LevelFilterOptions } from "../filter.js";
 import { assertTimeZone, formatEntry, formatEntryJson, formatGroups, formatSummary } from "../format.js";
 import { groupEntries } from "../grouping/index.js";
@@ -18,6 +19,7 @@ export interface ReadOptions extends LevelFilterOptions {
 
 /** `logscope read <files...>` — parse file(s)/globs/stdin and print entries. */
 export async function readCommand(files: string[], options: ReadOptions): Promise<void> {
+  options = applyConfigDefaults(options, getConfig());
   const tz = options.tz ? assertTimeZone(options.tz) : undefined;
   const jsonl = options.out === "jsonl";
   if (options.out && options.out !== "jsonl" && options.out !== "text") {
