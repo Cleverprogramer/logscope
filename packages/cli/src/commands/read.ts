@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import type { Command } from "commander";
 import { applyFilter, type LevelFilterOptions } from "../filter.js";
-import { formatEntry, formatGroups, formatSummary } from "../format.js";
+import { assertTimeZone, formatEntry, formatGroups, formatSummary } from "../format.js";
 import { groupEntries } from "../grouping/index.js";
 import { readLogFile } from "../reader.js";
 
@@ -10,10 +10,13 @@ export interface ReadOptions extends LevelFilterOptions {
   quiet?: boolean;
   /** Show the top N most frequent message groups after the entries. */
   top?: string;
+  /** IANA timezone for displayed timestamps, e.g. America/New_York. */
+  tz?: string;
 }
 
 /** `logscope read <file>` — parse a file and print color-coded entries. */
 export async function readCommand(file: string, options: ReadOptions): Promise<void> {
+  const tz = options.tz ? assertTimeZone(options.tz) : undefined;
   const result = await readLogFile(file);
 
   // Filters are applied to parsed output; unparsed lines only survive when no
@@ -21,7 +24,7 @@ export async function readCommand(file: string, options: ReadOptions): Promise<v
   const filtered = applyFilter(result.entries, options);
 
   for (const entry of filtered) {
-    console.log(formatEntry(entry));
+    console.log(formatEntry(entry, tz));
   }
 
   if (!options.quiet) {
@@ -58,6 +61,7 @@ export function registerReadCommand(program: Command): void {
       "--since <when>",
       'only entries after this time: "30s", "5m", "2h", "7d" or an ISO date',
     )
+    .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
     .option("-q, --quiet", "hide the summary line")
     .option("-t, --top <n>", "show the N most frequent message groups", "10")
     .action(async (file: string, options: ReadOptions) => {
