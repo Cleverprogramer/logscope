@@ -1,7 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
 import { parseLog } from "./parser/index.js";
-import type { ParseResult } from "./types.js";
+import type { ParseOptions, ParseResult } from "./types.js";
 
 /**
  * Decode a raw file buffer based on its extension. Supports plain text,
@@ -31,9 +31,9 @@ export function decodeContent(path: string, raw: Buffer): string {
  * Throws a friendly Error for missing/unreadable files — callers decide
  * how to surface it (CLI prints it in red and exits non-zero).
  */
-export async function readLogFile(path: string): Promise<ParseResult> {
+export async function readLogFile(path: string, options: ParseOptions = {}): Promise<ParseResult> {
   if (path === "-") {
-    return parseLog(await Bun.stdin.text());
+    return parseLog(await Bun.stdin.text(), options);
   }
 
   let content: string;
@@ -56,7 +56,7 @@ export async function readLogFile(path: string): Promise<ParseResult> {
     throw new Error(`could not read ${path}: ${error instanceof Error ? error.message : error}`);
   }
 
-  return parseLog(content);
+  return parseLog(content, options);
 }
 
 /** Expand one CLI path argument into concrete file paths (glob-aware). */
@@ -95,7 +95,7 @@ export async function expandPaths(pattern: string): Promise<string[]> {
  * single merged ParseResult. Entries keep per-file line numbers and gain
  * a `source` field; totals aggregate across every input.
  */
-export async function readLogFiles(paths: string[]): Promise<ParseResult> {
+export async function readLogFiles(paths: string[], options: ParseOptions = {}): Promise<ParseResult> {
   const expanded: string[] = [];
   for (const path of paths) {
     expanded.push(...(await expandPaths(path)));
@@ -106,7 +106,7 @@ export async function readLogFiles(paths: string[]): Promise<ParseResult> {
   let totalLines = 0;
 
   for (const path of expanded) {
-    const result = await readLogFile(path);
+    const result = await readLogFile(path, options);
     totalLines += result.totalLines;
     unparsedLines += result.unparsedLines;
     // Line numbers restart per file — they reference their source.

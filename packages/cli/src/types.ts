@@ -35,4 +35,6 @@ export interface ParseResult {
 export interface ParseOptions {
   /** Base line offset, used when parsing chunks of a larger file. Defaults to 0. */
   startLine?: number;
+  /** Custom line template, e.g. "{timestamp} [{level}] {message}". */
+  formatTemplate?: string;
 }

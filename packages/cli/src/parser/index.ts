@@ -3,6 +3,7 @@ import { detectFormat } from "./detect.js";
 import { parseJsonLine } from "./json.js";
 import { parsePlainLine, unknownEntry } from "./plain.js";
 import { parseInfraLine } from "./infra.js";
+import { compileFormat } from "./custom.js";
 
 export { detectFormat, type LogFormat } from "./detect.js";
 export { parseJson, parseJsonLine } from "./json.js";
@@ -24,7 +25,12 @@ function parseLineWithFallback(
   raw: string,
   line: number,
   primary: "plain" | "json",
+  custom?: ReturnType<typeof compileFormat>,
 ): LogEntry {
+  if (custom) {
+    const parsed = custom(raw);
+    if (parsed) return { ...parsed, line };
+  }
   const primaryParsed = primary === "json" ? parseJsonLine(raw) : parsePlainLine(raw);
   if (primaryParsed) return { ...primaryParsed, line };
 
@@ -61,12 +67,13 @@ export function parseLog(content: string, options: ParseOptions = {}): ParseResu
   const format = detectFormat(lines);
   const startLine = options.startLine ?? 0;
 
+  const custom = options.formatTemplate ? compileFormat(options.formatTemplate) : undefined;
   const entries: LogEntry[] = [];
   let unparsedLines = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]!;
-    const parsed = parseLineWithFallback(raw, startLine + i, format);
+    const parsed = parseLineWithFallback(raw, startLine + i, format, custom);
 
     if (
       parsed.unparsed &&
