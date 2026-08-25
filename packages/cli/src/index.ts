@@ -8,6 +8,7 @@ import { registerWatchCommand } from "./commands/watch.js";
 import { registerGapsCommand } from "./commands/gaps.js";
 import { registerSpikesCommand } from "./commands/spikes.js";
 import { registerLatencyCommand } from "./commands/latency.js";
+import { registerAdviseCommand } from "./commands/advise.js";
 
 const program = new Command();
 
@@ -23,6 +24,7 @@ registerWatchCommand(program);
 registerGapsCommand(program);
 registerSpikesCommand(program);
 registerLatencyCommand(program);
+registerAdviseCommand(program);
 registerDashboardCommand(program);
 
 program.parse(process.argv);
