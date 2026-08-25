@@ -1,0 +1,12 @@
+2026-08-20 09:00:01 INFO Server started on port 3000
+[2026-08-20T09:00:02Z] DEBUG Loading config from /etc/app/config.yaml
+2026-08-20 09:03:17 WARN Slow query detected: 1240ms on /api/users
+{"timestamp":"2026-08-20T09:05:44.120Z","level":"error","msg":"Payment failed for order 8841","orderId":8841,"userId":312}
+2026-08-20 09:05:45 ERROR Payment failed for order 8842
+2026-08-20 09:05:46 ERROR Payment failed for order 8843
+this line is complete garbage and matches no format
+{"timestamp":"2026-08-20T09:07:10.512Z","level":"info","msg":"User signed up","email":"a@b.com"}
+2026-08-20 09:12:30 ERROR Database connection timeout after 5000ms
+2026-08-20 09:13:31 ERROR Database connection timeout after 5000ms
+2026-08-20 09:14:32 WARN Retrying database connection (attempt 1)
+2026-08-20T09:15:00.001Z INFO Health check OK
