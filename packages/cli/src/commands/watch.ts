@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import chalk from "chalk";
+import { applyConfigDefaults, getConfig } from "../config.js";
 import { renderReport, computeStats, type StatsOptions } from "./stats.js";
 
 export interface WatchOptions extends StatsOptions {
@@ -14,6 +15,7 @@ const CLEAR_SCREEN = "\x1b[2J\x1b[1;1H";
  * clearing the terminal each cycle. Ctrl+C exits.
  */
 export async function watchCommand(files: string[], options: WatchOptions): Promise<void> {
+  options = applyConfigDefaults(options, getConfig());
   const seconds = Math.max(1, Number.parseInt(options.interval ?? "2", 10) || 2);
 
   process.on("SIGINT", () => {

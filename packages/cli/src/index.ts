@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
+import { loadConfig } from "./config.js";
 import { registerDashboardCommand } from "./commands/dashboard.js";
 import { registerReadCommand } from "./commands/read.js";
 import { registerStatsCommand } from "./commands/stats.js";

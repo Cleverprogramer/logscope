@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { Command } from "commander";
+import { applyConfigDefaults, getConfig } from "../config.js";
 import { makeFilter, parseSince, type LevelFilterOptions } from "../filter.js";
 import { formatGroups } from "../format.js";
 import { groupEntries, type LogGroup } from "../grouping/index.js";
@@ -83,6 +84,7 @@ export async function computeStats(files: string[], options: StatsOptions): Prom
 }
 
 export async function statsCommand(files: string[], options: StatsOptions): Promise<void> {
+  options = applyConfigDefaults(options, getConfig());
   const report = await computeStats(files, options);
   if (options.json) {
     console.log(JSON.stringify(report, null, 2));
