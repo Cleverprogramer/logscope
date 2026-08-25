@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import type { Command } from "commander";
-import { parseSince, type LevelFilterOptions } from "../filter.js";
+import { makeFilter, parseSince, type LevelFilterOptions } from "../filter.js";
 import { formatGroups } from "../format.js";
 import { groupEntries, type LogGroup } from "../grouping/index.js";
 import { readLogFiles } from "../reader.js";
@@ -32,12 +32,14 @@ export interface StatsReport {
  * breakdown, covered time range, and the most frequent message groups.
  * `--json` exports the same data for piping into other tools.
  */
-export async function statsCommand(files: string[], options: StatsOptions): Promise<void> {
+export async function computeStats(files: string[], options: StatsOptions): Promise<StatsReport> {
   const result = await readLogFiles(files);
   const cutoff = options.since ? parseSince(options.since) : null;
+  const matches = makeFilter({ level: options.level, grep: options.grep });
 
   const entries = result.entries.filter((entry) => {
     if (cutoff && (!entry.timestamp || entry.timestamp < cutoff)) return false;
+    if (!matches(entry)) return false;
     return true;
   });
 
@@ -77,15 +79,19 @@ export async function statsCommand(files: string[], options: StatsOptions): Prom
     })),
   };
 
+  return report;
+}
+
+export async function statsCommand(files: string[], options: StatsOptions): Promise<void> {
+  const report = await computeStats(files, options);
   if (options.json) {
     console.log(JSON.stringify(report, null, 2));
     return;
   }
-
   renderReport(files.join(", "), report);
 }
 
-function renderReport(file: string, report: StatsReport): void {
+export function renderReport(file: string, report: StatsReport): void {
   console.log(chalk.bold.underline(`logscope stats — ${file}`));
   console.log();
 

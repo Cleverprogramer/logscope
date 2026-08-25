@@ -22,21 +22,30 @@ const LEVEL_ALIASES: Record<string, LogLevel> = {
   unknown: "UNKNOWN",
 };
 
+const DURATION_UNIT_MS: Record<string, number> = {
+  s: 1_000,
+  m: 60_000,
+  h: 3_600_000,
+  d: 86_400_000,
+  w: 604_800_000,
+};
+
+/** Parse a relative duration like "90s", "5m", "2h", "7d" into milliseconds. */
+export function parseDurationMs(input: string): number | null {
+  const match = /^(\d+)([smhdw])$/i.exec(input.trim());
+  if (!match) return null;
+  return Number(match[1]) * DURATION_UNIT_MS[match[2]!.toLowerCase()]!;
+}
+
 /**
- * Parse a `--since` value into a Date. Relative durations ("90s", "5m", "2h",
- * "7d") are measured back from now; anything else is parsed as an absolute
- * timestamp (naive values treated as UTC, same as log timestamps).
+ * Parse a `--since` value into a Date. Relative durations ("90s", "5m",
+ * "2h", "7d") are measured back from now; anything else is parsed as an
+ * absolute timestamp (naive values treated as UTC, same as log timestamps).
  * Throws a friendly error for unrecognizable input.
  */
 export function parseSince(input: string, now: Date = new Date()): Date {
-  const match = /^(\d+)([smhdw])$/i.exec(input.trim());
-  if (match) {
-    const amount = Number(match[1]);
-    const unitMs = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 }[
-      match[2]!.toLowerCase()
-    ]!;
-    return new Date(now.getTime() - amount * unitMs);
-  }
+  const ms = parseDurationMs(input);
+  if (ms !== null) return new Date(now.getTime() - ms);
 
   // Absolute date/datetime; naive values are treated as UTC, consistent
   // with how log timestamps themselves are parsed.
