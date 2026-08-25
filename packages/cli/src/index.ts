@@ -10,6 +10,7 @@ import { registerSpikesCommand } from "./commands/spikes.js";
 import { registerLatencyCommand } from "./commands/latency.js";
 import { registerAdviseCommand } from "./commands/advise.js";
 import { registerExplainCommand } from "./commands/explain.js";
+import { registerDiffCommand } from "./commands/diff.js";
 
 const program = new Command();
 
@@ -27,6 +28,7 @@ registerSpikesCommand(program);
 registerLatencyCommand(program);
 registerAdviseCommand(program);
 registerExplainCommand(program);
+registerDiffCommand(program);
 registerDashboardCommand(program);
 
 program.parse(process.argv);
