@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import type { LogEntry, LogLevel } from "../types.js";
 import { groupEntries, type LogGroup } from "../grouping/index.js";
 import { sparkline } from "./sparkline.js";
+import { bucketCounts } from "./series.js";
 
 const LEVEL_COLORS: Record<LogLevel, string> = {
   ERROR: "red",
@@ -67,19 +68,23 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
 
   const groups = useMemo(() => groupEntries(entries), [entries]);
 
-  // Error counts across 40 equal time buckets of the covered range.
-  const errorChart = useMemo(() => {
-    const errorsWithTs = entries.filter((e) => e.level === "ERROR" && e.timestamp);
-    if (stats.firstTs === null || stats.lastTs === null || errorsWithTs.length === 0) {
-      return null;
-    }
+  // Per-level series sharing one time axis.
+  const series = useMemo(() => {
+    if (stats.firstTs === null || stats.lastTs === null) return null;
+    const width = 40;
     const span = Math.max(1, stats.lastTs - stats.firstTs);
-    const buckets = new Array<number>(40).fill(0);
-    for (const e of errorsWithTs) {
-      const idx = Math.min(39, Math.floor(((e.timestamp!.getTime() - stats.firstTs!) / span) * 40));
-      buckets[idx] = (buckets[idx] ?? 0) + 1;
-    }
-    return sparkline(buckets, 40);
+    const inRange = entries.filter((e) => e.timestamp);
+    const build = (level: LogLevel) =>
+      sparkline(
+        bucketCounts(
+          inRange.filter((e) => e.level === level).map((e) => e.timestamp!.getTime()),
+          stats.firstTs!,
+          stats.lastTs!,
+          width,
+        ),
+        width,
+      );
+    return { errors: build("ERROR"), warnings: build("WARN"), info: build("INFO") };
   }, [entries, stats]);
 
   const handleKey = (input: string, key: Key) => {
@@ -112,11 +117,22 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
-        <Text bold>error rate</Text>
-        {errorChart ? (
-          <Text color="red">{errorChart}</Text>
+        <Text bold>rate over time</Text>
+        {series ? (
+          <Box flexDirection="column">
+            <Text>
+              <Text color="red">err </Text>
+              {series.errors}
+            </Text>
+            <Text>
+              <Text color="yellow">warn</Text> {series.warnings}
+            </Text>
+            <Text>
+              <Text color="blue">info</Text> {series.info}
+            </Text>
+          </Box>
         ) : (
-          <Text dimColor>(no timestamped errors yet)</Text>
+          <Text dimColor>(no timestamped entries yet)</Text>
         )}
       </Box>
 
