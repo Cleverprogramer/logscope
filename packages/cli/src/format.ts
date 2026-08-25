@@ -85,6 +85,29 @@ export function formatEntry(
   return `${lineNo} ${ts} ${level} ${message}`;
 }
 
+/**
+ * Serialize one entry as an NDJSON record. Pure data — no decorations —
+ * so downstream tools can consume `--out jsonl` streams directly.
+ */
+export function formatEntryJson(entry: {
+  line: number;
+  timestamp: Date | null;
+  level: LogLevel;
+  message: string;
+  raw: string;
+  unparsed: boolean;
+  metadata?: Record<string, unknown>;
+}): string {
+  return JSON.stringify({
+    line: entry.line,
+    timestamp: entry.timestamp ? entry.timestamp.toISOString() : null,
+    level: entry.level,
+    message: entry.message,
+    ...(entry.metadata ? { metadata: entry.metadata } : {}),
+    unparsed: entry.unparsed,
+  });
+}
+
 /** One-line summary shown after a `read` run. */
 export function formatSummary(result: { totalLines: number; unparsedLines: number }): string {
   const parts = [`${result.totalLines} lines parsed`];

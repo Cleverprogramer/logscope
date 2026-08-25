@@ -5,7 +5,7 @@ import { parsePlainLine, unknownEntry } from "../parser/plain.js";
 import { parseJsonLine } from "../parser/json.js";
 import { followLines } from "../tailer.js";
 import type { LogEntry } from "../types.js";
-import { assertTimeZone, formatEntry } from "../format.js";
+import { assertTimeZone, formatEntry, formatEntryJson } from "../format.js";
 
 export interface TailOptions {
   /** Start by showing the last N existing lines (tail -n behavior). */
@@ -16,6 +16,8 @@ export interface TailOptions {
   alertRate?: string;
   /** IANA timezone for displayed timestamps. */
   tz?: string;
+  /** Output format: "text" (default) or "jsonl". */
+  out?: string;
 }
 
 const DEFAULT_BACKREAD_LINES = 10;
@@ -43,11 +45,12 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
     ? clampInt(options.alertRate, Number.MAX_SAFE_INTEGER, 1, Number.MAX_SAFE_INTEGER)
     : null;
   const tz = options.tz ? assertTimeZone(options.tz) : undefined;
+  const jsonl = options.out === "jsonl";
 
   console.log(chalk.dim(`── tailing ${file} (ctrl+c to stop) ──`));
 
   for (const entry of initial.entries.slice(-backLines)) {
-    console.log(formatEntry(entry, tz));
+    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz));
   }
 
   let errorCount = 0;
@@ -74,7 +77,7 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
       continue;
     }
     const entry = parseArrivedLine(text, line);
-    console.log(formatEntry(entry, tz));
+    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz));
     seenCount += 1;
     if (entry.level === "ERROR") {
       errorCount += 1;
@@ -129,6 +132,7 @@ export function registerTailCommand(program: Command): void {
       "alert when this many ERRORs arrive within a rolling 60s window",
     )
     .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
+    .option("--out <format>", 'output format: "text" (default) or "jsonl"')
     .action(async (file: string, options: TailOptions) => {
       try {
         await tailCommand(file, options);
