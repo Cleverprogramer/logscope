@@ -20,6 +20,8 @@ export interface LogEntry {
    * Such entries keep their raw text and are counted separately.
    */
   unparsed: boolean;
+  /** Originating file path when reading multiple sources. */
+  source?: string;
 }
 
 /** Result of parsing a whole file. */

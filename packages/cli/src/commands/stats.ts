@@ -3,7 +3,7 @@ import type { Command } from "commander";
 import { parseSince, type LevelFilterOptions } from "../filter.js";
 import { formatGroups } from "../format.js";
 import { groupEntries, type LogGroup } from "../grouping/index.js";
-import { readLogFile } from "../reader.js";
+import { readLogFiles } from "../reader.js";
 import type { LogLevel } from "../types.js";
 
 export interface StatsOptions extends LevelFilterOptions {
@@ -32,8 +32,8 @@ export interface StatsReport {
  * breakdown, covered time range, and the most frequent message groups.
  * `--json` exports the same data for piping into other tools.
  */
-export async function statsCommand(file: string, options: StatsOptions): Promise<void> {
-  const result = await readLogFile(file);
+export async function statsCommand(files: string[], options: StatsOptions): Promise<void> {
+  const result = await readLogFiles(files);
   const cutoff = options.since ? parseSince(options.since) : null;
 
   const entries = result.entries.filter((entry) => {
@@ -82,7 +82,7 @@ export async function statsCommand(file: string, options: StatsOptions): Promise
     return;
   }
 
-  renderReport(file, report);
+  renderReport(files.join(", "), report);
 }
 
 function renderReport(file: string, report: StatsReport): void {
@@ -135,14 +135,14 @@ export function registerStatsCommand(program: Command): void {
   program
     .command("stats")
     .description("Print a one-shot summary report for a log file")
-    .argument("<file>", "path to the log file, or \"-\" for stdin")
+    .argument("<files...>", "log file paths or glob patterns; \"-\" for stdin")
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
     .option("--top <n>", "max message groups to show", "10")
     .option("--json", "output machine-readable JSON")
-    .action(async (file: string, options: StatsOptions) => {
+    .action(async (files: string[], options: StatsOptions) => {
       try {
-        await statsCommand(file, options);
+        await statsCommand(files, options);
       } catch (error) {
         console.error(chalk.red(`error:`), error instanceof Error ? error.message : error);
         process.exitCode = 1;

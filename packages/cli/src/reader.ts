@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
 import { parseLog } from "./parser/index.js";
 import type { ParseResult } from "./types.js";
@@ -57,4 +57,61 @@ export async function readLogFile(path: string): Promise<ParseResult> {
   }
 
   return parseLog(content);
+}
+
+/** Expand one CLI path argument into concrete file paths (glob-aware). */
+export async function expandPaths(pattern: string): Promise<string[]> {
+  if (!/[*?[]/.test(pattern)) return [pattern];
+
+  // Split at the last "/" before any glob character so directory parts stay
+  // literal; only the basename component is treated as a wildcard pattern.
+  const lastSlash = pattern.lastIndexOf("/");
+  const dirPart = lastSlash >= 0 ? pattern.slice(0, lastSlash + 1) : "";
+  const basePattern = pattern.slice(lastSlash + 1);
+
+  const regex = new RegExp(
+    "^" +
+      basePattern
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*\*/g, "\u0000")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\u0000/g, ".*")
+        .replace(/\?/g, ".") +
+      "$",
+  );
+
+  const entries = await readdir(dirPart || ".", { withFileTypes: true });
+  const matches = entries
+    .filter((e) => e.isFile() && regex.test(e.name))
+    .map((e) => `${dirPart}${e.name}`)
+    .sort();
+
+  if (matches.length === 0) throw new Error(`no files matched pattern: ${pattern}`);
+  return matches;
+}
+
+/**
+ * Read and parse multiple sources (files, globs, or "-" stdin) into a
+ * single merged ParseResult. Entries keep per-file line numbers and gain
+ * a `source` field; totals aggregate across every input.
+ */
+export async function readLogFiles(paths: string[]): Promise<ParseResult> {
+  const expanded: string[] = [];
+  for (const path of paths) {
+    expanded.push(...(await expandPaths(path)));
+  }
+
+  const entries: ParseResult["entries"] = [];
+  let unparsedLines = 0;
+  let totalLines = 0;
+
+  for (const path of expanded) {
+    const result = await readLogFile(path);
+    totalLines += result.totalLines;
+    unparsedLines += result.unparsedLines;
+    // Line numbers restart per file — they reference their source.
+    entries.push(...result.entries.map((e) => ({ ...e, source: path })));
+  }
+
+  return { entries, totalLines, unparsedLines };
 }

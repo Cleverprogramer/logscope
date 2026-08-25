@@ -3,7 +3,7 @@ import { painter } from "../color.js";
 import { applyFilter, type LevelFilterOptions } from "../filter.js";
 import { assertTimeZone, formatEntry, formatEntryJson, formatGroups, formatSummary } from "../format.js";
 import { groupEntries } from "../grouping/index.js";
-import { readLogFile } from "../reader.js";
+import { readLogFiles } from "../reader.js";
 
 export interface ReadOptions extends LevelFilterOptions {
   /** Suppress the trailing summary line. */
@@ -16,21 +16,22 @@ export interface ReadOptions extends LevelFilterOptions {
   out?: string;
 }
 
-/** `logscope read <file>` — parse a file and print color-coded entries. */
-export async function readCommand(file: string, options: ReadOptions): Promise<void> {
+/** `logscope read <files...>` — parse file(s)/globs/stdin and print entries. */
+export async function readCommand(files: string[], options: ReadOptions): Promise<void> {
   const tz = options.tz ? assertTimeZone(options.tz) : undefined;
   const jsonl = options.out === "jsonl";
   if (options.out && options.out !== "jsonl" && options.out !== "text") {
     throw new Error(`Invalid --out "${options.out}". Use "text" or "jsonl".`);
   }
-  const result = await readLogFile(file);
+  const result = await readLogFiles(files);
+  const showSource = result.entries.some((e) => e.source !== undefined);
 
   // Filters are applied to parsed output; unparsed lines only survive when no
   // level filter excludes UNKNOWN.
   const filtered = applyFilter(result.entries, options);
 
   for (const entry of filtered) {
-    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz));
+    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { showSource }));
   }
 
   if (!options.quiet && !jsonl) {
@@ -59,8 +60,8 @@ export async function readCommand(file: string, options: ReadOptions): Promise<v
 export function registerReadCommand(program: Command): void {
   program
     .command("read")
-    .description("Parse a log file and print color-coded, structured entries")
-    .argument("<file>", "path to the log file, or \"-\" for stdin")
+    .description("Parse log file(s) — paths, globs or \"-\" for stdin")
+    .argument("<files...>", "log file paths or glob patterns; \"-\" for stdin")
     .option("--level <levels>", 'filter by level(s), e.g. "error" or "error,warn"')
     .option("--grep <pattern>", "filter by text/regex match on message")
     .option(
@@ -71,9 +72,9 @@ export function registerReadCommand(program: Command): void {
     .option("--out <format>", 'output format: "text" (default) or "jsonl"')
     .option("-q, --quiet", "hide the summary line")
     .option("-t, --top <n>", "show the N most frequent message groups", "10")
-    .action(async (file: string, options: ReadOptions) => {
+    .action(async (files: string[], options: ReadOptions) => {
       try {
-        await readCommand(file, options);
+        await readCommand(files, options);
       } catch (error) {
         console.error(painter().red(`error:`), error instanceof Error ? error.message : error);
         process.exitCode = 1;

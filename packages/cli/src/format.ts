@@ -70,19 +70,31 @@ export function formatEntry(
     level: LogLevel;
     message: string;
     unparsed: boolean;
+    source?: string;
   },
   tz?: string,
+  opts?: { showSource?: boolean },
 ): string {
   const lineNo = painter().dim(String(entry.line + 1).padStart(5));
   const ts = formatTimestamp(entry.timestamp, tz);
   const level = colorizeLevel(entry.level);
+  const src =
+    opts?.showSource && entry.source
+      ? painter().cyan(`[${basename(entry.source)}] `)
+      : "";
 
   let message = entry.message;
   if (entry.unparsed) {
     message = `${painter().magenta("⟨unparsed⟩")} ${message}`;
   }
 
-  return `${lineNo} ${ts} ${level} ${message}`;
+  return `${lineNo} ${ts} ${level} ${src}${message}`;
+}
+
+/** Final path segment, for compact multi-file display. */
+function basename(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx === -1 ? path : path.slice(idx + 1);
 }
 
 /**
