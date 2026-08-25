@@ -5,6 +5,7 @@ import { registerReadCommand } from "./commands/read.js";
 import { registerStatsCommand } from "./commands/stats.js";
 import { registerTailCommand } from "./commands/tail.js";
 import { registerWatchCommand } from "./commands/watch.js";
+import { registerGapsCommand } from "./commands/gaps.js";
 
 const program = new Command();
 
@@ -17,6 +18,7 @@ registerReadCommand(program);
 registerTailCommand(program);
 registerStatsCommand(program);
 registerWatchCommand(program);
+registerGapsCommand(program);
 registerDashboardCommand(program);
 
 program.parse(process.argv);
