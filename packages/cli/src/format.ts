@@ -19,21 +19,62 @@ function colorizeLevel(level: LogLevel): string {
 /** Pad level to a fixed width so output columns line up. */
 const LEVEL_WIDTH = 7; // "UNKNOWN".length
 
-export function formatTimestamp(timestamp: Date | null): string {
+export function formatTimestamp(timestamp: Date | null, tz?: string): string {
   if (!timestamp) return painter().gray("                 ".slice(0, 19));
-  return timestamp.toISOString().replace("T", " ").slice(0, 19);
+  const text = tz ? formatInZone(timestamp, tz) : timestamp.toISOString().replace("T", " ").slice(0, 19);
+  return painter().gray(text);
 }
 
-/** Format one entry as a single colored console line. */
-export function formatEntry(entry: {
-  line: number;
-  timestamp: Date | null;
-  level: LogLevel;
-  message: string;
-  unparsed: boolean;
-}): string {
+/**
+ * Validate an IANA timezone name, returning it on success. Throws a
+ * friendly error for garbage so commands can fail fast before output.
+ */
+export function assertTimeZone(tz: string): string {
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: tz });
+    return tz;
+  } catch {
+    throw new Error(`Unknown timezone "${tz}". Use IANA names like UTC, America/New_York.`);
+  }
+}
+
+/** "YYYY-MM-DD HH:mm:ss" rendering of `timestamp` in the given IANA zone. */
+function formatInZone(timestamp: Date, tz: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+    .formatToParts(timestamp)
+    .reduce<Record<string, string>>((acc, p) => {
+      acc[p.type] = p.value;
+      return acc;
+    }, {});
+  const { year, month, day, hour, minute, second } = parts as Record<string, string>;
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
+/**
+ * Format one entry as a single colored console line. `tz` converts the
+ * displayed timestamp to an IANA zone; omitted means UTC ISO rendering.
+ */
+export function formatEntry(
+  entry: {
+    line: number;
+    timestamp: Date | null;
+    level: LogLevel;
+    message: string;
+    unparsed: boolean;
+  },
+  tz?: string,
+): string {
   const lineNo = painter().dim(String(entry.line + 1).padStart(5));
-  const ts = formatTimestamp(entry.timestamp);
+  const ts = formatTimestamp(entry.timestamp, tz);
   const level = colorizeLevel(entry.level);
 
   let message = entry.message;
@@ -41,7 +82,7 @@ export function formatEntry(entry: {
     message = `${painter().magenta("⟨unparsed⟩")} ${message}`;
   }
 
-  return `${lineNo} ${painter().gray(ts)} ${level} ${message}`;
+  return `${lineNo} ${ts} ${level} ${message}`;
 }
 
 /** One-line summary shown after a `read` run. */

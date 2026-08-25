@@ -5,7 +5,7 @@ import { parsePlainLine, unknownEntry } from "../parser/plain.js";
 import { parseJsonLine } from "../parser/json.js";
 import { followLines } from "../tailer.js";
 import type { LogEntry } from "../types.js";
-import { formatEntry } from "../format.js";
+import { assertTimeZone, formatEntry } from "../format.js";
 
 export interface TailOptions {
   /** Start by showing the last N existing lines (tail -n behavior). */
@@ -14,6 +14,8 @@ export interface TailOptions {
   pollMs?: string;
   /** Alert when ≥ N ERROR entries arrive within any rolling 60s window. */
   alertRate?: string;
+  /** IANA timezone for displayed timestamps. */
+  tz?: string;
 }
 
 const DEFAULT_BACKREAD_LINES = 10;
@@ -40,11 +42,12 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
   const alertThreshold = options.alertRate
     ? clampInt(options.alertRate, Number.MAX_SAFE_INTEGER, 1, Number.MAX_SAFE_INTEGER)
     : null;
+  const tz = options.tz ? assertTimeZone(options.tz) : undefined;
 
   console.log(chalk.dim(`── tailing ${file} (ctrl+c to stop) ──`));
 
   for (const entry of initial.entries.slice(-backLines)) {
-    console.log(formatEntry(entry));
+    console.log(formatEntry(entry, tz));
   }
 
   let errorCount = 0;
@@ -71,7 +74,7 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
       continue;
     }
     const entry = parseArrivedLine(text, line);
-    console.log(formatEntry(entry));
+    console.log(formatEntry(entry, tz));
     seenCount += 1;
     if (entry.level === "ERROR") {
       errorCount += 1;
@@ -125,6 +128,7 @@ export function registerTailCommand(program: Command): void {
       "--alert-rate <count>",
       "alert when this many ERRORs arrive within a rolling 60s window",
     )
+    .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
     .action(async (file: string, options: TailOptions) => {
       try {
         await tailCommand(file, options);
