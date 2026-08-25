@@ -2,6 +2,7 @@ import type { LogEntry, ParseOptions, ParseResult } from "../types.js";
 import { detectFormat } from "./detect.js";
 import { parseJsonLine } from "./json.js";
 import { parsePlainLine, unknownEntry } from "./plain.js";
+import { parseInfraLine } from "./infra.js";
 
 export { detectFormat, type LogFormat } from "./detect.js";
 export { parseJson, parseJsonLine } from "./json.js";
@@ -29,6 +30,9 @@ function parseLineWithFallback(
 
   const fallbackParsed = primary === "json" ? parsePlainLine(raw) : parseJsonLine(raw);
   if (fallbackParsed) return { ...fallbackParsed, line };
+
+  const infraParsed = parseInfraLine(raw);
+  if (infraParsed) return { ...infraParsed, line };
 
   return unknownEntry(raw, line);
 }
