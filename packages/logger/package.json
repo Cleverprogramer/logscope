@@ -1,0 +1,13 @@
+{
+  "name": "logscope-logger",
+  "version": "0.1.0",
+  "description": "Zero-config structured logger whose output logscope reads out of the box",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  }
+}
