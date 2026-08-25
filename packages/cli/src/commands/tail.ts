@@ -1,11 +1,12 @@
 import type { Command } from "commander";
 import chalk from "chalk";
-import { parseLog } from "../parser/index.js";
+import { parseLog, isContinuation } from "../parser/index.js";
 import { parsePlainLine, unknownEntry } from "../parser/plain.js";
 import { parseJsonLine } from "../parser/json.js";
 import { followLines } from "../tailer.js";
 import type { LogEntry } from "../types.js";
 import { assertTimeZone, formatEntry, formatEntryJson } from "../format.js";
+import { painter } from "../color.js";
 
 export interface TailOptions {
   /** Start by showing the last N existing lines (tail -n behavior). */
@@ -46,6 +47,7 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
     : null;
   const tz = options.tz ? assertTimeZone(options.tz) : undefined;
   const jsonl = options.out === "jsonl";
+  let lastEntry: LogEntry | null = initial.entries.length > 0 ? initial.entries[initial.entries.length - 1]! : null;
 
   console.log(chalk.dim(`── tailing ${file} (ctrl+c to stop) ──`));
 
@@ -76,14 +78,23 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
       console.log(chalk.yellow("⟳ file truncated/rotated, re-reading from start"));
       continue;
     }
-    const entry = parseArrivedLine(text, line);
-    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz));
-    seenCount += 1;
-    if (entry.level === "ERROR") {
-      errorCount += 1;
-      recentErrorTimes.push(Date.now());
-    } else if (entry.level === "WARN") {
-      warnCount += 1;
+
+    // Stack frames fold into the previous entry instead of standing alone.
+    if (isContinuation(text) && lastEntry && !lastEntry.unparsed) {
+      lastEntry.message += `\n${text}`;
+      console.log(painter().dim(`      ⤷ ${text.trim()}`));
+      seenCount += 1;
+    } else {
+      const entry = parseArrivedLine(text, line);
+      console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz));
+      seenCount += 1;
+      if (!entry.unparsed) lastEntry = entry;
+      if (entry.level === "ERROR") {
+        errorCount += 1;
+        recentErrorTimes.push(Date.now());
+      } else if (entry.level === "WARN") {
+        warnCount += 1;
+      }
     }
 
     // Rolling ERROR-rate spike detection.
