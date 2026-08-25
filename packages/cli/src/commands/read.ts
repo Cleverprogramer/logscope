@@ -51,7 +51,7 @@ export function registerReadCommand(program: Command): void {
   program
     .command("read")
     .description("Parse a log file and print color-coded, structured entries")
-    .argument("<file>", "path to the log file")
+    .argument("<file>", "path to the log file, or \"-\" for stdin")
     .option("--level <levels>", 'filter by level(s), e.g. "error" or "error,warn"')
     .option("--grep <pattern>", "filter by text/regex match on message")
     .option(
