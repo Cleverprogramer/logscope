@@ -34,22 +34,52 @@ function parseLineWithFallback(
 }
 
 /**
+ * A line that failed both parsers may still belong to the previous entry —
+ * stack-trace frames, "Caused by:" chains, ellipsis continuations.
+ * Conservative on purpose: real garbage must stay flagged unparsed.
+ */
+const CONTINUATION_RE = /^\s+\S|^(?:Caused by:|\.\.\. \d+ |Suppressed:)/;
+
+export function isContinuation(raw: string): boolean {
+  return raw.trim().length > 0 && CONTINUATION_RE.test(raw);
+}
+
+/**
  * Parse an entire log file's content. The dominant format (plain vs JSON
  * lines) is auto-detected from the first lines, but every line individually
  * falls back to the other parser before being flagged as unparsed — so
- * nothing ever crashes or gets silently dropped.
+ * nothing ever crashes or gets silently dropped. Unparseable continuation
+ * lines (stack frames) attach to their parent entry instead of standing
+ * alone.
  */
 export function parseLog(content: string, options: ParseOptions = {}): ParseResult {
   const lines = splitLines(content);
   const format = detectFormat(lines);
   const startLine = options.startLine ?? 0;
 
-  const entries = lines.map((raw, i) => parseLineWithFallback(raw, startLine + i, format));
+  const entries: LogEntry[] = [];
+  let unparsedLines = 0;
 
-  return {
-    entries,
-    totalLines: entries.length,
-    unparsedLines: entries.filter((e) => e.unparsed).length,
-  };
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]!;
+    const parsed = parseLineWithFallback(raw, startLine + i, format);
+
+    if (
+      parsed.unparsed &&
+      entries.length > 0 &&
+      isContinuation(raw) &&
+      !entries[entries.length - 1]!.unparsed
+    ) {
+      // Stack frame: fold into the parent entry's message.
+      const parent = entries[entries.length - 1]!;
+      parent.message += `\n${raw}`;
+      continue;
+    }
+
+    if (parsed.unparsed) unparsedLines += 1;
+    entries.push(parsed);
+  }
+
+  return { entries, totalLines: lines.length, unparsedLines };
 }
 
