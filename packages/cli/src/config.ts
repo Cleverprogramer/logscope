@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ThemeColorOverrides } from "./dashboard/themes.js";
+import type { DashboardPanel } from "./dashboard/layout.js";
 
 /** Keys a .logscoperc may set — they map onto CLI option names. */
 export interface LogscopeConfig {
@@ -13,6 +14,7 @@ export interface LogscopeConfig {
   out?: string;
   theme?: string;
   colors?: ThemeColorOverrides;
+  dashboard?: { panels?: DashboardPanel[] };
 }
 
 const CONFIG_FILENAME = ".logscoperc";
@@ -36,6 +38,12 @@ function readConfigFile(path: string): LogscopeConfig | null {
         config.colors = {};
         for (const [color, raw] of Object.entries(value)) {
           if (typeof raw === "string") config.colors[color as keyof ThemeColorOverrides] = raw;
+        }
+      }
+      if (key === "dashboard" && value && typeof value === "object" && !Array.isArray(value)) {
+        const panels = (value as { panels?: unknown }).panels;
+        if (Array.isArray(panels) && panels.every((panel) => typeof panel === "string")) {
+          config.dashboard = { panels: panels as DashboardPanel[] };
         }
       }
     }
