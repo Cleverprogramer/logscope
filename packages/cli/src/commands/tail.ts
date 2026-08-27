@@ -8,6 +8,7 @@ import type { LogEntry } from "../types.js";
 import { assertTimeZone, formatEntry, formatEntryJson } from "../format.js";
 import { painter } from "../color.js";
 import { ringBell, sendNotification } from "../notify.js";
+import { setAsciiMode, symbol } from "../symbols.js";
 
 export interface TailOptions {
   /** Start by showing the last N existing lines (tail -n behavior). */
@@ -24,6 +25,7 @@ export interface TailOptions {
   notify?: boolean;
   compact?: boolean;
   verbose?: boolean;
+  ascii?: boolean;
 }
 
 const DEFAULT_BACKREAD_LINES = 10;
@@ -44,6 +46,7 @@ export function parseArrivedLine(raw: string, line: number): LogEntry {
  */
 export async function tailCommand(file: string, options: TailOptions): Promise<void> {
   if (options.compact && options.verbose) throw new Error("Options --compact and --verbose cannot be used together.");
+  setAsciiMode(options.ascii);
   // Fail fast with the friendly reader error if the file doesn't exist yet.
   const initial = await readInitial(file);
   const backLines = clampInt(options.n, DEFAULT_BACKREAD_LINES, 0, 10_000);
@@ -81,14 +84,14 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
     startLine: initial.entries.length,
   })) {
     if (text === "__TRUNCATED__") {
-      console.log(chalk.yellow("⟳ file truncated/rotated, re-reading from start"));
+      console.log(chalk.yellow(`${symbol("⟳", "~")} file truncated/rotated, re-reading from start`));
       continue;
     }
 
     // Stack frames fold into the previous entry instead of standing alone.
     if (isContinuation(text) && lastEntry && !lastEntry.unparsed) {
       lastEntry.message += `\n${text}`;
-      console.log(painter().dim(`      ⤷ ${text.trim()}`));
+      console.log(painter().dim(`      ${symbol("⤷", "->")} ${text.trim()}`));
       seenCount += 1;
     } else {
       const entry = parseArrivedLine(text, line);
@@ -160,6 +163,7 @@ export function registerTailCommand(program: Command): void {
     .option("--notify", "send OS notifications when alerts fire")
     .option("--compact", "minimal one-line human output")
     .option("--verbose", "include full metadata and multiline details")
+    .option("--ascii", "use ASCII-only symbols")
     .action(async (file: string, options: TailOptions) => {
       try {
         await tailCommand(file, options);

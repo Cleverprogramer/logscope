@@ -1,6 +1,7 @@
 import { painter } from "./color.js";
 import type { LogGroup } from "./grouping/index.js";
 import type { LogLevel } from "./types.js";
+import { symbol } from "./symbols.js";
 
 /** Chalk color name per log level, resolved through the paint gate. */
 const LEVEL_COLOR_NAMES: Record<LogLevel, "red" | "yellow" | "blue" | "gray" | "magenta"> = {
@@ -90,7 +91,7 @@ export function formatEntry(
 
   let message = entry.message;
   if (entry.unparsed) {
-    message = `${painter().magenta("⟨unparsed⟩")} ${message}`;
+    message = `${painter().magenta(symbol("⟨unparsed⟩", "<unparsed>"))} ${message}`;
   }
 
   const metadata = opts?.mode === "verbose" && entry.metadata && Object.keys(entry.metadata).length > 0

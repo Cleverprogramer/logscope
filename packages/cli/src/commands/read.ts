@@ -5,6 +5,7 @@ import { applyFilter, type LevelFilterOptions } from "../filter.js";
 import { assertTimeZone, formatEntry, formatEntryJson, formatGroups, formatSummary } from "../format.js";
 import { groupEntries } from "../grouping/index.js";
 import { readLogFiles } from "../reader.js";
+import { setAsciiMode } from "../symbols.js";
 
 export interface ReadOptions extends LevelFilterOptions {
   /** Suppress the trailing summary line. */
@@ -19,11 +20,13 @@ export interface ReadOptions extends LevelFilterOptions {
   format?: string;
   compact?: boolean;
   verbose?: boolean;
+  ascii?: boolean;
 }
 
 /** `logscope read <files...>` — parse file(s)/globs/stdin and print entries. */
 export async function readCommand(files: string[], options: ReadOptions): Promise<void> {
   options = applyConfigDefaults(options, getConfig());
+  setAsciiMode(options.ascii);
   if (options.compact && options.verbose) throw new Error("Options --compact and --verbose cannot be used together.");
   const tz = options.tz ? assertTimeZone(options.tz) : undefined;
   const jsonl = options.out === "jsonl";
@@ -87,6 +90,7 @@ export function registerReadCommand(program: Command): void {
     .option("-t, --top <n>", "show the N most frequent message groups", "10")
     .option("--compact", "minimal one-line human output")
     .option("--verbose", "include full metadata and multiline details")
+    .option("--ascii", "use ASCII-only symbols")
     .action(async (files: string[], options: ReadOptions) => {
       try {
         await readCommand(files, options);
