@@ -17,11 +17,14 @@ export interface ReadOptions extends LevelFilterOptions {
   out?: string;
   /** Custom line template, e.g. "{timestamp} [{level}] {message}". */
   format?: string;
+  compact?: boolean;
+  verbose?: boolean;
 }
 
 /** `logscope read <files...>` — parse file(s)/globs/stdin and print entries. */
 export async function readCommand(files: string[], options: ReadOptions): Promise<void> {
   options = applyConfigDefaults(options, getConfig());
+  if (options.compact && options.verbose) throw new Error("Options --compact and --verbose cannot be used together.");
   const tz = options.tz ? assertTimeZone(options.tz) : undefined;
   const jsonl = options.out === "jsonl";
   if (options.out && options.out !== "jsonl" && options.out !== "text") {
@@ -37,7 +40,7 @@ export async function readCommand(files: string[], options: ReadOptions): Promis
   const filtered = applyFilter(result.entries, options);
 
   for (const entry of filtered) {
-    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { showSource }));
+    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { showSource, mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
   }
 
   if (!options.quiet && !jsonl) {
@@ -82,6 +85,8 @@ export function registerReadCommand(program: Command): void {
     )
     .option("-q, --quiet", "hide the summary line")
     .option("-t, --top <n>", "show the N most frequent message groups", "10")
+    .option("--compact", "minimal one-line human output")
+    .option("--verbose", "include full metadata and multiline details")
     .action(async (files: string[], options: ReadOptions) => {
       try {
         await readCommand(files, options);

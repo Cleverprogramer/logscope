@@ -41,4 +41,14 @@ describe("color gate", () => {
     expect((p.bgRed as any).white.bold(" ALERT ")).toBe(" ALERT ");
     expect(p.dim("x")).toBe("x");
   });
+
+  test("compact mode produces a single normalized line", () => {
+    process.env.NO_COLOR = "1";
+    expect(formatEntry({ ...entry, message: "first\nsecond" }, undefined, { mode: "compact" })).toContain("ERROR first second");
+  });
+
+  test("verbose mode includes metadata", () => {
+    process.env.NO_COLOR = "1";
+    expect(formatEntry({ ...entry, metadata: { requestId: "abc" } }, undefined, { mode: "verbose" })).toContain('metadata: {"requestId":"abc"}');
+  });
 });
