@@ -29,6 +29,15 @@ bun run compile
 The examples below use `logscope`. When running from source, prefix the
 command with `bun run dev --`.
 
+## See it in action
+
+![Animated logscope dashboard walkthrough showing grouped errors, searchable entries, Nord theme, icons, and alert editing](docs/assets/dashboard-demo.gif)
+
+The demo is a silent, looping overview of the dashboard using the checked-in
+sample log. If animation is unavailable, the complete [dashboard control
+reference](#dashboard) describes the same workflow. Maintainers can rebuild
+the asset with `bun run demo:gif`.
+
 ## Command reference
 
 | Command | What it does | Example |
