@@ -4,6 +4,7 @@ import type { LogEntry, LogLevel } from "../types.js";
 import { groupEntries, type LogGroup } from "../grouping/index.js";
 import { sparkline } from "./sparkline.js";
 import { bucketCounts } from "./series.js";
+import { filterEntries } from "./entries.js";
 
 const LEVEL_COLORS: Record<LogLevel, string> = {
   ERROR: "red",
@@ -50,6 +51,10 @@ function KeyboardControls({ onKey }: { onKey: (input: string, key: Key) => void 
 export function Dashboard({ file, entries, activeFilters }: DashboardProps): React.ReactElement {
   const [selected, setSelected] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const [browser, setBrowser] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
+  const [entryCursor, setEntryCursor] = useState(0);
 
   const stats = useMemo(() => {
     const levels = { ERROR: 0, WARN: 0, INFO: 0, DEBUG: 0, UNKNOWN: 0 };
@@ -67,6 +72,7 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
   }, [entries]);
 
   const groups = useMemo(() => groupEntries(entries), [entries]);
+  const visibleEntries = useMemo(() => filterEntries(entries, query), [entries, query]);
 
   // Per-level series sharing one time axis.
   const series = useMemo(() => {
@@ -88,7 +94,21 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
   }, [entries, stats]);
 
   const handleKey = (input: string, key: Key) => {
+    if (searching) {
+      if (key.escape) { setSearching(false); setQuery(""); return; }
+      if (key.return) { setSearching(false); return; }
+      if (key.backspace || key.delete) { setQuery((q) => q.slice(0, -1)); return; }
+      if (input && input.length === 1 && !key.ctrl && !key.meta) setQuery((q) => q + input);
+      return;
+    }
     if (input === "q" || key.escape) process.exit(0);
+    if (input === "e") { setBrowser((v) => !v); setEntryCursor(0); return; }
+    if (input === "/") { setBrowser(true); setSearching(true); return; }
+    if (browser) {
+      if (key.upArrow) setEntryCursor((i) => Math.max(0, i - 1));
+      if (key.downArrow) setEntryCursor((i) => Math.min(Math.max(0, visibleEntries.length - 1), i + 1));
+      return;
+    }
     if (key.upArrow) setSelected((s) => Math.max(0, s - 1));
     if (key.downArrow) setSelected((s) => Math.min(Math.max(0, groups.length - 1), s + 1));
     if (key.return) setExpanded((v) => !v);
@@ -139,7 +159,7 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
       <Box flexDirection="column">
         <Text bold>
           top message groups{" "}
-          <Text dimColor>({groups.length} total · ↑↓ select · enter expand · q quit)</Text>
+          <Text dimColor>({groups.length} total · ↑↓ select · enter expand · e entries · q quit)</Text>
         </Text>
         {groups.length === 0 && <Text dimColor>waiting for log lines…</Text>}
         {groups.slice(0, 10).map((group, i) => {
@@ -166,6 +186,21 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
           );
         })}
       </Box>
+
+      {browser && (
+        <Box flexDirection="column" marginTop={1}>
+          <Text bold>entries <Text dimColor>(↑↓ scroll · / search · e close)</Text></Text>
+          {searching && <Text color="yellow">/{query}▌</Text>}
+          {!searching && query && <Text dimColor>filter: /{query}/ ({visibleEntries.length})</Text>}
+          {visibleEntries.slice(Math.max(0, entryCursor - 4), entryCursor + 6).map((entry, i) => {
+            const actual = Math.max(0, entryCursor - 4) + i;
+            return <Text key={`${entry.line}:${actual}`} color={actual === entryCursor ? "cyan" : undefined}>
+              {actual === entryCursor ? "❯ " : "  "}{String(entry.line + 1).padStart(5)} {entry.level.padEnd(7)} {entry.message}
+            </Text>;
+          })}
+          {visibleEntries.length === 0 && <Text dimColor>no matching entries</Text>}
+        </Box>
+      )}
 
       {selectedGroup && (
         <Box marginTop={1}>
