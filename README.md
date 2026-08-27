@@ -274,8 +274,10 @@ tokens `YYYY`, `MM`, `DD`, `HH`, `mm`, `ss`, and `SSS`.
 ## Design and development
 
 The parser → grouping → analysis → output/dashboard flow is documented in
-[ARCHITECTURE.md](ARCHITECTURE.md) and kept in small, testable modules under
-`packages/cli/src`. Development commands:
+[ARCHITECTURE.md](ARCHITECTURE.md). Contribution setup, validation, and pull
+request expectations live in [CONTRIBUTING.md](CONTRIBUTING.md). The code is
+kept in small, testable modules under `packages/cli/src`. Development
+commands:
 
 ```bash
 bun install
