@@ -1,11 +1,12 @@
-import { Box, Text, useInput, type Key } from "ink";
-import React, { useMemo, useState } from "react";
+import { Box, Text, useInput, useStdin, type Key } from "ink";
+import React, { useEffect, useMemo, useState } from "react";
 import type { LogEntry, LogLevel } from "../types.js";
 import { groupEntries, type LogGroup } from "../grouping/index.js";
 import { sparkline } from "./sparkline.js";
 import { bucketCounts } from "./series.js";
 import { filterEntries } from "./entries.js";
 import { ALERT_THRESHOLDS, recentErrorCount } from "./alerts.js";
+import { parseSgrMouse, type MouseEvent } from "./mouse.js";
 
 const LEVEL_COLORS: Record<LogLevel, string> = {
   ERROR: "red",
@@ -41,6 +42,24 @@ function StatBox({ label, value, color }: { label: string; value: number; color:
  */
 function KeyboardControls({ onKey }: { onKey: (input: string, key: Key) => void }): null {
   useInput((input, key) => onKey(input, key));
+  return null;
+}
+
+function MouseControls({ onMouse }: { onMouse: (event: MouseEvent) => void }): null {
+  const { stdin } = useStdin();
+  useEffect(() => {
+    if (!stdin.isTTY) return;
+    process.stdout.write("\x1b[?1000h\x1b[?1006h");
+    const onData = (chunk: Buffer | string) => {
+      const event = parseSgrMouse(String(chunk));
+      if (event) onMouse(event);
+    };
+    stdin.on("data", onData);
+    return () => {
+      stdin.off("data", onData);
+      process.stdout.write("\x1b[?1000l\x1b[?1006l");
+    };
+  }, [stdin, onMouse]);
   return null;
 }
 
@@ -118,11 +137,21 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
     if (key.return) setExpanded((v) => !v);
   };
 
+  const handleMouse = (event: MouseEvent) => {
+    if (event.button === "wheel-up") setEntryCursor((i) => Math.max(0, i - 1));
+    if (event.button === "wheel-down") setEntryCursor((i) => Math.min(Math.max(0, visibleEntries.length - 1), i + 1));
+    if (event.button === "left" && !event.release && event.row >= 13 && event.row < 23) {
+      setSelected(Math.min(groups.length - 1, event.row - 13));
+      setExpanded(true);
+    }
+  };
+
   const selectedGroup: LogGroup | null = groups[selected] ?? null;
 
   return (
     <Box flexDirection="column">
       {process.stdin.isTTY ? <KeyboardControls onKey={handleKey} /> : null}
+      {process.stdin.isTTY ? <MouseControls onMouse={handleMouse} /> : null}
       <Box marginBottom={1}>
         <Text bold color="cyan">
           ⌁ logscope
