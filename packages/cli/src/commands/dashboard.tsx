@@ -19,6 +19,7 @@ export interface DashboardOptions {
   theme?: string;
   ascii?: boolean;
   icons?: boolean;
+  banner?: boolean;
 }
 
 const LEVEL_ALIASES = ["error", "warn", "warning", "info", "debug", "unknown"];
@@ -72,7 +73,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
   let entries = parseLog(content).entries.filter(matches);
 
   const instance = render(
-    <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} panels={panels} />,
+    <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} panels={panels} banner={options.banner} />,
     { exitOnCtrlC: true },
   );
 
@@ -91,7 +92,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
         if (!matches(entry)) continue;
         entries = [...entries, entry];
         instance.rerender(
-          <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} panels={panels} />,
+          <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} panels={panels} banner={options.banner} />,
         );
       }
     } catch {
@@ -125,6 +126,7 @@ export function registerDashboardCommand(program: Command): void {
     .option("--theme <name>", "color theme: default, dracula, solarized, monokai, nord")
     .option("--ascii", "use ASCII-only symbols")
     .option("--icons", "prefix levels with semantic icons")
+    .option("--banner", "show a static startup branding banner")
     .action(async (file: string, options: DashboardOptions) => {
       try {
         await dashboardCommand(file, options);

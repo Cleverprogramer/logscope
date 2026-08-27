@@ -9,6 +9,7 @@ import { ALERT_THRESHOLDS, recentErrorCount } from "./alerts.js";
 import { parseSgrMouse, type MouseEvent } from "./mouse.js";
 import type { DashboardTheme } from "./themes.js";
 import { levelIcon, symbol } from "../symbols.js";
+import { bannerLines } from "./banner.js";
 import type { DashboardPanel } from "./layout.js";
 
 export interface DashboardProps {
@@ -19,6 +20,7 @@ export interface DashboardProps {
   theme?: DashboardTheme;
   icons?: boolean;
   panels?: DashboardPanel[];
+  banner?: boolean;
 }
 
 function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
@@ -66,7 +68,7 @@ function MouseControls({ onMouse }: { onMouse: (event: MouseEvent) => void }): n
  * message groups. ↑/↓ select a group, enter expands its line numbers,
  * q/ctrl+c quits.
  */
-export function Dashboard({ file, entries, activeFilters, theme, icons, panels = ["stats", "rate", "groups", "entries"] }: DashboardProps): React.ReactElement {
+export function Dashboard({ file, entries, activeFilters, theme, icons, panels = ["stats", "rate", "groups", "entries"], banner = false }: DashboardProps): React.ReactElement {
   const [selected, setSelected] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [browser, setBrowser] = useState(false);
@@ -148,6 +150,7 @@ export function Dashboard({ file, entries, activeFilters, theme, icons, panels =
 
   return (
     <Box flexDirection="column">
+      {banner && bannerLines().map((line) => <Text key={line} color={theme?.accent ?? "cyan"}>{line}</Text>)}
       {process.stdin.isTTY ? <KeyboardControls onKey={handleKey} /> : null}
       {process.stdin.isTTY ? <MouseControls onMouse={handleMouse} /> : null}
       <Box marginBottom={1}>
