@@ -60,4 +60,10 @@ describe("color gate", () => {
     expect(formatEntry({ ...entry, unparsed: true })).toContain("<unparsed>");
     expect(formatEntry({ ...entry, unparsed: true })).not.toContain("⟨unparsed⟩");
   });
+
+  test("icons preserve the textual level", () => {
+    process.env.NO_COLOR = "1";
+    setAsciiMode(true);
+    expect(formatEntry(entry, undefined, { icons: true })).toContain("x ERROR");
+  });
 });

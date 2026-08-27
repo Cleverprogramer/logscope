@@ -26,6 +26,7 @@ export interface TailOptions {
   compact?: boolean;
   verbose?: boolean;
   ascii?: boolean;
+  icons?: boolean;
 }
 
 const DEFAULT_BACKREAD_LINES = 10;
@@ -61,7 +62,7 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
   console.log(chalk.dim(`── tailing ${file} (ctrl+c to stop) ──`));
 
   for (const entry of initial.entries.slice(-backLines)) {
-    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
+    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { icons: options.icons, mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
   }
 
   let errorCount = 0;
@@ -95,7 +96,7 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
       seenCount += 1;
     } else {
       const entry = parseArrivedLine(text, line);
-      console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
+      console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { icons: options.icons, mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
       seenCount += 1;
       if (!entry.unparsed) lastEntry = entry;
       if (entry.level === "ERROR") {
@@ -164,6 +165,7 @@ export function registerTailCommand(program: Command): void {
     .option("--compact", "minimal one-line human output")
     .option("--verbose", "include full metadata and multiline details")
     .option("--ascii", "use ASCII-only symbols")
+    .option("--icons", "prefix levels with semantic icons")
     .action(async (file: string, options: TailOptions) => {
       try {
         await tailCommand(file, options);
