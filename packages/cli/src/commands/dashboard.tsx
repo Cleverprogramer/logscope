@@ -8,6 +8,7 @@ import { followLines } from "../tailer.js";
 import { parseSince } from "../filter.js";
 import { parseArrivedLine } from "./tail.js";
 import { getTheme, type DashboardTheme } from "../dashboard/themes.js";
+import { getConfig } from "../config.js";
 
 export interface DashboardOptions {
   level?: string;
@@ -32,7 +33,8 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
   }
 
   const activeFilters: string[] = [];
-  const theme: DashboardTheme = getTheme(options.theme);
+  const config = getConfig();
+  const theme: DashboardTheme = getTheme(options.theme ?? config.theme, config.colors);
   activeFilters.push(`theme=${theme.name}`);
   const levelsWanted = options.level
     ? new Set(
@@ -114,7 +116,7 @@ export function registerDashboardCommand(program: Command): void {
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
     .option("--grep <pattern>", "filter by text/regex match")
-    .option("--theme <name>", "color theme: default, dracula, solarized, monokai, nord", "default")
+    .option("--theme <name>", "color theme: default, dracula, solarized, monokai, nord")
     .action(async (file: string, options: DashboardOptions) => {
       try {
         await dashboardCommand(file, options);

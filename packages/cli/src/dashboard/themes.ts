@@ -6,6 +6,7 @@ export interface DashboardTheme {
   accent: string;
   border: string;
 }
+export type ThemeColorOverrides = Partial<Record<"error" | "warn" | "info" | "debug" | "unknown" | "accent" | "border", string>>;
 
 const base = { ERROR: "red", WARN: "yellow", INFO: "blue", DEBUG: "gray", UNKNOWN: "magenta" } as Record<LogLevel, string>;
 
@@ -17,8 +18,20 @@ export const THEMES: Record<string, DashboardTheme> = {
   nord: { name: "nord", levels: { ERROR: "red", WARN: "yellow", INFO: "cyan", DEBUG: "blue", UNKNOWN: "magenta" }, accent: "cyan", border: "blue" },
 };
 
-export function getTheme(name = "default"): DashboardTheme {
+export function getTheme(name = "default", overrides: ThemeColorOverrides = {}): DashboardTheme {
   const theme = THEMES[name.toLowerCase()];
   if (!theme) throw new Error(`Unknown theme "${name}". Choose ${Object.keys(THEMES).join(", ")}.`);
-  return theme;
+  return {
+    ...theme,
+    levels: {
+      ...theme.levels,
+      ...(overrides.error ? { ERROR: overrides.error } : {}),
+      ...(overrides.warn ? { WARN: overrides.warn } : {}),
+      ...(overrides.info ? { INFO: overrides.info } : {}),
+      ...(overrides.debug ? { DEBUG: overrides.debug } : {}),
+      ...(overrides.unknown ? { UNKNOWN: overrides.unknown } : {}),
+    },
+    accent: overrides.accent ?? theme.accent,
+    border: overrides.border ?? theme.border,
+  };
 }
