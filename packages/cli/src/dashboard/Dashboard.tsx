@@ -5,6 +5,7 @@ import { groupEntries, type LogGroup } from "../grouping/index.js";
 import { sparkline } from "./sparkline.js";
 import { bucketCounts } from "./series.js";
 import { filterEntries } from "./entries.js";
+import { ALERT_THRESHOLDS, recentErrorCount } from "./alerts.js";
 
 const LEVEL_COLORS: Record<LogLevel, string> = {
   ERROR: "red",
@@ -55,6 +56,7 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [entryCursor, setEntryCursor] = useState(0);
+  const [alertIndex, setAlertIndex] = useState(0);
 
   const stats = useMemo(() => {
     const levels = { ERROR: 0, WARN: 0, INFO: 0, DEBUG: 0, UNKNOWN: 0 };
@@ -73,6 +75,7 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
 
   const groups = useMemo(() => groupEntries(entries), [entries]);
   const visibleEntries = useMemo(() => filterEntries(entries, query), [entries, query]);
+  const recentErrors = recentErrorCount(entries, Date.now());
 
   // Per-level series sharing one time axis.
   const series = useMemo(() => {
@@ -103,6 +106,7 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
     }
     if (input === "q" || key.escape) process.exit(0);
     if (input === "e") { setBrowser((v) => !v); setEntryCursor(0); return; }
+    if (input === "a") { setAlertIndex((i) => (i + 1) % ALERT_THRESHOLDS.length); return; }
     if (input === "/") { setBrowser(true); setSearching(true); return; }
     if (browser) {
       if (key.upArrow) setEntryCursor((i) => Math.max(0, i - 1));
@@ -128,6 +132,10 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
           <Text color="yellow"> [{activeFilters.join(", ")}]</Text>
         )}
       </Box>
+
+      <Text dimColor>
+        alert rule: {ALERT_THRESHOLDS[alertIndex] === null ? "off" : `${ALERT_THRESHOLDS[alertIndex]} errors/min`} · recent errors: {recentErrors} · press a to edit
+      </Text>
 
       <Box gap={2} marginBottom={1}>
         <StatBox label="lines" value={entries.length} color="white" />
@@ -159,7 +167,7 @@ export function Dashboard({ file, entries, activeFilters }: DashboardProps): Rea
       <Box flexDirection="column">
         <Text bold>
           top message groups{" "}
-          <Text dimColor>({groups.length} total · ↑↓ select · enter expand · e entries · q quit)</Text>
+          <Text dimColor>({groups.length} total · ↑↓ select · enter expand · e entries · a alert · q quit)</Text>
         </Text>
         {groups.length === 0 && <Text dimColor>waiting for log lines…</Text>}
         {groups.slice(0, 10).map((group, i) => {
