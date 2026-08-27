@@ -61,7 +61,8 @@ export async function computeStats(files: string[], options: StatsOptions): Prom
     }
   }
 
-  const topN = Math.max(0, Number.parseInt(options.top ?? "10", 10) || 10);
+  const parsedTop = Number.parseInt(options.top ?? "10", 10);
+  const topN = Number.isNaN(parsedTop) ? 10 : Math.max(0, parsedTop);
   const groups: LogGroup[] = groupEntries(entries);
   const report: StatsReport = {
     totalLines: entries.length,
