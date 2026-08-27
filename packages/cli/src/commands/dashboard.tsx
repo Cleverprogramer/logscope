@@ -17,6 +17,7 @@ export interface DashboardOptions {
   grep?: string;
   theme?: string;
   ascii?: boolean;
+  icons?: boolean;
 }
 
 const LEVEL_ALIASES = ["error", "warn", "warning", "info", "debug", "unknown"];
@@ -69,7 +70,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
   let entries = parseLog(content).entries.filter(matches);
 
   const instance = render(
-    <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} />,
+    <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} />,
     { exitOnCtrlC: true },
   );
 
@@ -88,7 +89,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
         if (!matches(entry)) continue;
         entries = [...entries, entry];
         instance.rerender(
-          <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} />,
+          <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} />,
         );
       }
     } catch {
@@ -121,6 +122,7 @@ export function registerDashboardCommand(program: Command): void {
     .option("--grep <pattern>", "filter by text/regex match")
     .option("--theme <name>", "color theme: default, dracula, solarized, monokai, nord")
     .option("--ascii", "use ASCII-only symbols")
+    .option("--icons", "prefix levels with semantic icons")
     .action(async (file: string, options: DashboardOptions) => {
       try {
         await dashboardCommand(file, options);

@@ -8,7 +8,7 @@ import { filterEntries } from "./entries.js";
 import { ALERT_THRESHOLDS, recentErrorCount } from "./alerts.js";
 import { parseSgrMouse, type MouseEvent } from "./mouse.js";
 import type { DashboardTheme } from "./themes.js";
-import { symbol } from "../symbols.js";
+import { levelIcon, symbol } from "../symbols.js";
 
 export interface DashboardProps {
   file: string;
@@ -16,6 +16,7 @@ export interface DashboardProps {
   /** Filters to display as active (informational). */
   activeFilters: string[];
   theme?: DashboardTheme;
+  icons?: boolean;
 }
 
 function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
@@ -63,7 +64,7 @@ function MouseControls({ onMouse }: { onMouse: (event: MouseEvent) => void }): n
  * message groups. ↑/↓ select a group, enter expands its line numbers,
  * q/ctrl+c quits.
  */
-export function Dashboard({ file, entries, activeFilters, theme }: DashboardProps): React.ReactElement {
+export function Dashboard({ file, entries, activeFilters, theme, icons }: DashboardProps): React.ReactElement {
   const [selected, setSelected] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [browser, setBrowser] = useState(false);
@@ -202,7 +203,7 @@ export function Dashboard({ file, entries, activeFilters, theme }: DashboardProp
         <Text color={isSelected ? (theme?.accent ?? "cyan") : undefined}>
                   {isSelected ? symbol("❯ ", "> ") : "  "}
                 </Text>
-                <Text color={theme?.levels[group.level] ?? "white"}>{group.level.padEnd(7)}</Text>
+                <Text color={theme?.levels[group.level] ?? "white"}>{icons ? `${levelIcon(group.level)} ` : ""}{group.level.padEnd(7)}</Text>
                 <Text bold>×{String(group.count).padEnd(4)}</Text>
                 <Text>{group.sample}</Text>
               </Box>

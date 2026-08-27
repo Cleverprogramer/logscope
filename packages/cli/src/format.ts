@@ -1,7 +1,7 @@
 import { painter } from "./color.js";
 import type { LogGroup } from "./grouping/index.js";
 import type { LogLevel } from "./types.js";
-import { symbol } from "./symbols.js";
+import { levelIcon, symbol } from "./symbols.js";
 
 /** Chalk color name per log level, resolved through the paint gate. */
 const LEVEL_COLOR_NAMES: Record<LogLevel, "red" | "yellow" | "blue" | "gray" | "magenta"> = {
@@ -12,9 +12,10 @@ const LEVEL_COLOR_NAMES: Record<LogLevel, "red" | "yellow" | "blue" | "gray" | "
   UNKNOWN: "magenta",
 };
 
-function colorizeLevel(level: LogLevel): string {
+function colorizeLevel(level: LogLevel, icons = false): string {
   const padded = level.padEnd(LEVEL_WIDTH);
-  return painter()[LEVEL_COLOR_NAMES[level]](padded);
+  const icon = icons ? `${levelIcon(level)} ` : "";
+  return painter()[LEVEL_COLOR_NAMES[level]](`${icon}${padded}`);
 }
 
 /** Pad level to a fixed width so output columns line up. */
@@ -75,15 +76,15 @@ export function formatEntry(
     metadata?: Record<string, unknown>;
   },
   tz?: string,
-  opts?: { showSource?: boolean; mode?: "compact" | "verbose" },
+  opts?: { showSource?: boolean; mode?: "compact" | "verbose"; icons?: boolean },
 ): string {
   if (opts?.mode === "compact") {
     const prefix = entry.source && opts.showSource ? `[${basename(entry.source)}] ` : "";
-    return `${colorizeLevel(entry.level).trim()} ${prefix}${entry.message.replace(/\s+/g, " ")}`;
+    return `${colorizeLevel(entry.level, opts?.icons).trim()} ${prefix}${entry.message.replace(/\s+/g, " ")}`;
   }
   const lineNo = painter().dim(String(entry.line + 1).padStart(5));
   const ts = formatTimestamp(entry.timestamp, tz);
-  const level = colorizeLevel(entry.level);
+  const level = colorizeLevel(entry.level, opts?.icons);
   const src =
     opts?.showSource && entry.source
       ? painter().cyan(`[${basename(entry.source)}] `)
