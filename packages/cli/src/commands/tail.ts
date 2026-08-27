@@ -22,6 +22,8 @@ export interface TailOptions {
   out?: string;
   /** OS-notify + bell when the alert threshold trips. */
   notify?: boolean;
+  compact?: boolean;
+  verbose?: boolean;
 }
 
 const DEFAULT_BACKREAD_LINES = 10;
@@ -41,6 +43,7 @@ export function parseArrivedLine(raw: string, line: number): LogEntry {
  * counters; optional ERROR-rate spike alerts.
  */
 export async function tailCommand(file: string, options: TailOptions): Promise<void> {
+  if (options.compact && options.verbose) throw new Error("Options --compact and --verbose cannot be used together.");
   // Fail fast with the friendly reader error if the file doesn't exist yet.
   const initial = await readInitial(file);
   const backLines = clampInt(options.n, DEFAULT_BACKREAD_LINES, 0, 10_000);
@@ -55,7 +58,7 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
   console.log(chalk.dim(`── tailing ${file} (ctrl+c to stop) ──`));
 
   for (const entry of initial.entries.slice(-backLines)) {
-    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz));
+    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
   }
 
   let errorCount = 0;
@@ -89,7 +92,7 @@ export async function tailCommand(file: string, options: TailOptions): Promise<v
       seenCount += 1;
     } else {
       const entry = parseArrivedLine(text, line);
-      console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz));
+      console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
       seenCount += 1;
       if (!entry.unparsed) lastEntry = entry;
       if (entry.level === "ERROR") {
@@ -155,6 +158,8 @@ export function registerTailCommand(program: Command): void {
     .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
     .option("--out <format>", 'output format: "text" (default) or "jsonl"')
     .option("--notify", "send OS notifications when alerts fire")
+    .option("--compact", "minimal one-line human output")
+    .option("--verbose", "include full metadata and multiline details")
     .action(async (file: string, options: TailOptions) => {
       try {
         await tailCommand(file, options);

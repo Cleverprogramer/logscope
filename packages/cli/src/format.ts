@@ -71,10 +71,15 @@ export function formatEntry(
     message: string;
     unparsed: boolean;
     source?: string;
+    metadata?: Record<string, unknown>;
   },
   tz?: string,
-  opts?: { showSource?: boolean },
+  opts?: { showSource?: boolean; mode?: "compact" | "verbose" },
 ): string {
+  if (opts?.mode === "compact") {
+    const prefix = entry.source && opts.showSource ? `[${basename(entry.source)}] ` : "";
+    return `${colorizeLevel(entry.level).trim()} ${prefix}${entry.message.replace(/\s+/g, " ")}`;
+  }
   const lineNo = painter().dim(String(entry.line + 1).padStart(5));
   const ts = formatTimestamp(entry.timestamp, tz);
   const level = colorizeLevel(entry.level);
@@ -88,7 +93,10 @@ export function formatEntry(
     message = `${painter().magenta("⟨unparsed⟩")} ${message}`;
   }
 
-  return `${lineNo} ${ts} ${level} ${src}${message}`;
+  const metadata = opts?.mode === "verbose" && entry.metadata && Object.keys(entry.metadata).length > 0
+    ? `\n  metadata: ${JSON.stringify(entry.metadata)}`
+    : "";
+  return `${lineNo} ${ts} ${level} ${src}${message}${metadata}`;
 }
 
 /** Final path segment, for compact multi-file display. */
