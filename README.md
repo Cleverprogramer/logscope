@@ -14,7 +14,13 @@ useful output in a few seconds:
 git clone https://github.com/Cleverprogramer/logscope.git
 cd logscope
 bun install
-bun run dev -- read samples/sample.log --top 5
+bun run dev -- read sample.log --top 5
+```
+
+The same fixture works with the live dashboard:
+
+```bash
+bun run dev -- dashboard sample.log --theme nord --icons --banner
 ```
 
 For a standalone executable, compile once and run the same commands without a
@@ -23,8 +29,13 @@ Bun runtime:
 ```bash
 cd packages/cli
 bun run compile
-./dist/logscope stats ../../samples/sample.log --json
+./dist/logscope stats ../../sample.log --json
 ```
+
+The root `sample.log` is a copy of `samples/sample.log` kept for backwards
+compatibility with tests and scripts. It deliberately mixes plain text and
+JSONL, repeats error groups, includes a duration, and contains one malformed
+line so the parser behavior is visible immediately.
 
 The examples below use `logscope`. When running from source, prefix the
 command with `bun run dev --`.
@@ -269,7 +280,7 @@ testable modules under `packages/cli/src`. Development commands:
 bun install
 bun test
 bun run typecheck
-bun run dev -- stats samples/sample.log
+bun run dev -- stats sample.log
 ```
 
 logscope is intentionally offline and heuristic. It does not send logs to an

@@ -8,7 +8,8 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "dev": "bun run packages/cli/src/index.ts",
-    "demo:gif": "bun run scripts/capture-demo.ts"
+    "demo:gif": "bun run scripts/capture-demo.ts",
+    "quickstart": "bun run dev -- stats sample.log --top 5"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",
