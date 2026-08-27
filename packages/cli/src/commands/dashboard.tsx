@@ -7,11 +7,13 @@ import { parseLog } from "../parser/index.js";
 import { followLines } from "../tailer.js";
 import { parseSince } from "../filter.js";
 import { parseArrivedLine } from "./tail.js";
+import { getTheme, type DashboardTheme } from "../dashboard/themes.js";
 
 export interface DashboardOptions {
   level?: string;
   since?: string;
   grep?: string;
+  theme?: string;
 }
 
 const LEVEL_ALIASES = ["error", "warn", "warning", "info", "debug", "unknown"];
@@ -30,6 +32,8 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
   }
 
   const activeFilters: string[] = [];
+  const theme: DashboardTheme = getTheme(options.theme);
+  activeFilters.push(`theme=${theme.name}`);
   const levelsWanted = options.level
     ? new Set(
         options.level
@@ -60,7 +64,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
   let entries = parseLog(content).entries.filter(matches);
 
   const instance = render(
-    <Dashboard file={file} entries={entries} activeFilters={activeFilters} />,
+    <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} />,
     { exitOnCtrlC: true },
   );
 
@@ -79,7 +83,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
         if (!matches(entry)) continue;
         entries = [...entries, entry];
         instance.rerender(
-          <Dashboard file={file} entries={entries} activeFilters={activeFilters} />,
+          <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} />,
         );
       }
     } catch {
@@ -110,6 +114,7 @@ export function registerDashboardCommand(program: Command): void {
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
     .option("--grep <pattern>", "filter by text/regex match")
+    .option("--theme <name>", "color theme: default, dracula, solarized, monokai, nord", "default")
     .action(async (file: string, options: DashboardOptions) => {
       try {
         await dashboardCommand(file, options);
