@@ -1,6 +1,7 @@
 import { describe, expect, test, afterEach } from "bun:test";
 import { colorEnabled, painter } from "../src/color.js";
 import { formatEntry } from "../src/format.js";
+import { setAsciiMode } from "../src/symbols.js";
 
 const entry = {
   line: 0,
@@ -13,6 +14,7 @@ const entry = {
 afterEach(() => {
   delete process.env.NO_COLOR;
   delete process.env.FORCE_COLOR;
+  setAsciiMode(false);
 });
 
 describe("color gate", () => {
@@ -50,5 +52,12 @@ describe("color gate", () => {
   test("verbose mode includes metadata", () => {
     process.env.NO_COLOR = "1";
     expect(formatEntry({ ...entry, metadata: { requestId: "abc" } }, undefined, { mode: "verbose" })).toContain('metadata: {"requestId":"abc"}');
+  });
+
+  test("ASCII mode replaces the unparsed marker", () => {
+    process.env.NO_COLOR = "1";
+    setAsciiMode(true);
+    expect(formatEntry({ ...entry, unparsed: true })).toContain("<unparsed>");
+    expect(formatEntry({ ...entry, unparsed: true })).not.toContain("⟨unparsed⟩");
   });
 });

@@ -9,12 +9,14 @@ import { parseSince } from "../filter.js";
 import { parseArrivedLine } from "./tail.js";
 import { getTheme, type DashboardTheme } from "../dashboard/themes.js";
 import { getConfig } from "../config.js";
+import { setAsciiMode } from "../symbols.js";
 
 export interface DashboardOptions {
   level?: string;
   since?: string;
   grep?: string;
   theme?: string;
+  ascii?: boolean;
 }
 
 const LEVEL_ALIASES = ["error", "warn", "warning", "info", "debug", "unknown"];
@@ -34,6 +36,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
 
   const activeFilters: string[] = [];
   const config = getConfig();
+  setAsciiMode(options.ascii);
   const theme: DashboardTheme = getTheme(options.theme ?? config.theme, config.colors);
   activeFilters.push(`theme=${theme.name}`);
   const levelsWanted = options.level
@@ -117,6 +120,7 @@ export function registerDashboardCommand(program: Command): void {
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
     .option("--grep <pattern>", "filter by text/regex match")
     .option("--theme <name>", "color theme: default, dracula, solarized, monokai, nord")
+    .option("--ascii", "use ASCII-only symbols")
     .action(async (file: string, options: DashboardOptions) => {
       try {
         await dashboardCommand(file, options);

@@ -8,6 +8,7 @@ import { filterEntries } from "./entries.js";
 import { ALERT_THRESHOLDS, recentErrorCount } from "./alerts.js";
 import { parseSgrMouse, type MouseEvent } from "./mouse.js";
 import type { DashboardTheme } from "./themes.js";
+import { symbol } from "../symbols.js";
 
 export interface DashboardProps {
   file: string;
@@ -199,7 +200,7 @@ export function Dashboard({ file, entries, activeFilters, theme }: DashboardProp
             <React.Fragment key={`${group.level}:${group.signature}`}>
               <Box>
         <Text color={isSelected ? (theme?.accent ?? "cyan") : undefined}>
-                  {isSelected ? "❯ " : "  "}
+                  {isSelected ? symbol("❯ ", "> ") : "  "}
                 </Text>
                 <Text color={theme?.levels[group.level] ?? "white"}>{group.level.padEnd(7)}</Text>
                 <Text bold>×{String(group.count).padEnd(4)}</Text>
