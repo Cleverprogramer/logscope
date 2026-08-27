@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { detectFormat } from "../src/parser/detect.js";
-import { parseLog, splitLines } from "../src/parser/index.js";
+import { DEFAULT_MAX_LINE_LENGTH, parseLog, splitLines } from "../src/parser/index.js";
 
 describe("detectFormat", () => {
   test("detects JSON lines when majority of lines are objects", () => {
@@ -47,5 +47,18 @@ describe("parseLog end-to-end", () => {
 
   test("never throws on arbitrary garbage input", () => {
     expect(() => parseLog("\n\n\n{{{}}}@@@\n\x00\x01binary junk\n")).not.toThrow();
+  });
+
+  test("caps extremely long physical lines", () => {
+    const longMessage = "x".repeat(DEFAULT_MAX_LINE_LENGTH + 100);
+    const result = parseLog(`2024-01-15 10:30:45 ERROR ${longMessage}`);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]!.raw.length).toBeLessThanOrEqual(DEFAULT_MAX_LINE_LENGTH);
+    expect(result.entries[0]!.message).toContain("[truncated]");
+  });
+
+  test("supports a custom max line length", () => {
+    const result = parseLog("plain garbage line", { maxLineLength: 8 });
+    expect(result.entries[0]!.raw).toHaveLength(8);
   });
 });
