@@ -7,7 +7,8 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "dev": "bun run packages/cli/src/index.ts"
+    "dev": "bun run packages/cli/src/index.ts",
+    "demo:gif": "bun run scripts/capture-demo.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",
