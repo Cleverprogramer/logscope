@@ -37,4 +37,6 @@ export interface ParseOptions {
   startLine?: number;
   /** Custom line template, e.g. "{timestamp} [{level}] {message}". */
   formatTemplate?: string;
+  /** Maximum characters kept from a single physical line. Defaults to 64 KiB. */
+  maxLineLength?: number;
 }

@@ -22,6 +22,33 @@ describe("readLogFile", () => {
     }
   });
 
+  test("empty files parse successfully", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "logscope-empty-"));
+    try {
+      const file = join(dir, "empty.log");
+      await writeFile(file, "");
+      const result = await readLogFile(file);
+      expect(result.totalLines).toBe(0);
+      expect(result.entries).toHaveLength(0);
+      expect(result.unparsedLines).toBe(0);
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
+  test("likely binary files fail with a friendly error", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "logscope-binary-"));
+    try {
+      const file = join(dir, "image.log");
+      await writeFile(file, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x00, 0x0d]));
+      const err = (await readLogFile(file).catch((e) => e as Error)) as Error;
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/binary file not supported/);
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
   test("missing file → friendly error", async () => {
     try {
       await readLogFile("/nonexistent/nope.log");

@@ -9,11 +9,22 @@ export { detectFormat, type LogFormat } from "./detect.js";
 export { parseJson, parseJsonLine } from "./json.js";
 export { parsePlain, parsePlainLine } from "./plain.js";
 
+export const DEFAULT_MAX_LINE_LENGTH = 64 * 1024;
+const TRUNCATED_SUFFIX = " ... [truncated]";
+
 /** Split file content into lines, tolerating \r\n and a missing trailing newline. */
 export function splitLines(content: string): string[] {
   const parts = content.split(/\r?\n/);
   if (parts.length > 0 && parts[parts.length - 1] === "") parts.pop();
   return parts;
+}
+
+function clampLineLength(raw: string, maxLineLength: number): string {
+  if (!Number.isFinite(maxLineLength) || maxLineLength <= 0 || raw.length <= maxLineLength) {
+    return raw;
+  }
+  if (maxLineLength <= TRUNCATED_SUFFIX.length) return TRUNCATED_SUFFIX.slice(0, maxLineLength);
+  return `${raw.slice(0, maxLineLength - TRUNCATED_SUFFIX.length)}${TRUNCATED_SUFFIX}`;
 }
 
 /**
@@ -63,7 +74,8 @@ export function isContinuation(raw: string): boolean {
  * alone.
  */
 export function parseLog(content: string, options: ParseOptions = {}): ParseResult {
-  const lines = splitLines(content);
+  const maxLineLength = options.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH;
+  const lines = splitLines(content).map((line) => clampLineLength(line, maxLineLength));
   const format = detectFormat(lines);
   const startLine = options.startLine ?? 0;
 
@@ -93,4 +105,3 @@ export function parseLog(content: string, options: ParseOptions = {}): ParseResu
 
   return { entries, totalLines: lines.length, unparsedLines };
 }
-

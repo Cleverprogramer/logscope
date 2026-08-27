@@ -3,6 +3,32 @@ import { gunzipSync } from "node:zlib";
 import { parseLog } from "./parser/index.js";
 import type { ParseOptions, ParseResult } from "./types.js";
 
+const BINARY_SAMPLE_BYTES = 8 * 1024;
+const MAX_CONTROL_BYTE_RATIO = 0.3;
+
+export function isLikelyBinaryContent(raw: Buffer): boolean {
+  if (raw.length === 0) return false;
+
+  const sample = raw.subarray(0, Math.min(raw.length, BINARY_SAMPLE_BYTES));
+  let controlBytes = 0;
+
+  for (const byte of sample) {
+    if (byte === 0) return true;
+    const isAllowedWhitespace = byte === 9 || byte === 10 || byte === 12 || byte === 13;
+    const isEscape = byte === 27;
+    if (byte < 32 && !isAllowedWhitespace && !isEscape) controlBytes += 1;
+  }
+
+  return controlBytes / sample.length > MAX_CONTROL_BYTE_RATIO;
+}
+
+function decodeText(path: string, raw: Buffer): string {
+  if (isLikelyBinaryContent(raw)) {
+    throw new Error(`binary file not supported: ${path}`);
+  }
+  return raw.toString("utf8");
+}
+
 /**
  * Decode a raw file buffer based on its extension. Supports plain text,
  * gzip (.gz) and zstd (.zst / .zstd). Returns UTF-8 text ready to parse.
@@ -10,19 +36,27 @@ import type { ParseOptions, ParseResult } from "./types.js";
 export function decodeContent(path: string, raw: Buffer): string {
   const lower = path.toLowerCase();
   if (lower.endsWith(".gz") || lower.endsWith(".gzip")) {
+    let decoded: Buffer;
     try {
-      return gunzipSync(raw).toString("utf8");
+      decoded = gunzipSync(raw);
     } catch {
       throw new Error(`corrupt gzip file: ${path}`);
     }
+    return decodeText(path, decoded);
   }
   if (lower.endsWith(".zst") || lower.endsWith(".zstd")) {
     if (typeof Bun !== "undefined" && typeof Bun.zstdDecompressSync === "function") {
-      return Bun.zstdDecompressSync(raw).toString("utf8");
+      let decoded: Buffer;
+      try {
+        decoded = Bun.zstdDecompressSync(raw);
+      } catch {
+        throw new Error(`corrupt zstd file: ${path}`);
+      }
+      return decodeText(path, decoded);
     }
     throw new Error(`zstd support requires a newer Bun runtime: ${path}`);
   }
-  return raw.toString("utf8");
+  return decodeText(path, raw);
 }
 
 /**
@@ -44,6 +78,12 @@ export async function readLogFile(path: string, options: ParseOptions = {}): Pro
       throw error;
     }
     if (error instanceof Error && error.message.startsWith("corrupt gzip file:")) {
+      throw error;
+    }
+    if (error instanceof Error && error.message.startsWith("corrupt zstd file:")) {
+      throw error;
+    }
+    if (error instanceof Error && error.message.startsWith("binary file not supported:")) {
       throw error;
     }
     const code = (error as NodeJS.ErrnoException)?.code;
