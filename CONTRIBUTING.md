@@ -96,6 +96,7 @@ Run these from the repository root before submitting a pull request:
 bun run typecheck
 bun test
 bun run quickstart
+bun run perf:smoke
 ```
 
 Run extra checks when your change touches the related area:
@@ -105,8 +106,10 @@ bun run demo:gif
 cd packages/cli && bun run compile
 ```
 
-Use `bun run demo:gif` when README dashboard visuals change. Use the compile
-check when command routing, package metadata, or build behavior changes.
+Use `bun run perf:smoke` when parser, grouping, analysis, dashboard bucketing,
+or large-file behavior changes. Use `bun run demo:gif` when README dashboard
+visuals change. Use the compile check when command routing, package metadata,
+or build behavior changes.
 
 ## Testing guidance
 
