@@ -10,6 +10,7 @@ import { parseArrivedLine } from "./tail.js";
 import { getTheme, type DashboardTheme } from "../dashboard/themes.js";
 import { getConfig } from "../config.js";
 import { setAsciiMode } from "../symbols.js";
+import { resolvePanels } from "../dashboard/layout.js";
 
 export interface DashboardOptions {
   level?: string;
@@ -39,6 +40,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
   const config = getConfig();
   setAsciiMode(options.ascii);
   const theme: DashboardTheme = getTheme(options.theme ?? config.theme, config.colors);
+  const panels = resolvePanels(config.dashboard?.panels);
   activeFilters.push(`theme=${theme.name}`);
   const levelsWanted = options.level
     ? new Set(
@@ -70,7 +72,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
   let entries = parseLog(content).entries.filter(matches);
 
   const instance = render(
-    <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} />,
+    <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} panels={panels} />,
     { exitOnCtrlC: true },
   );
 
@@ -89,7 +91,7 @@ export async function dashboardCommand(file: string, options: DashboardOptions):
         if (!matches(entry)) continue;
         entries = [...entries, entry];
         instance.rerender(
-          <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} />,
+          <Dashboard file={file} entries={entries} activeFilters={activeFilters} theme={theme} icons={options.icons} panels={panels} />,
         );
       }
     } catch {

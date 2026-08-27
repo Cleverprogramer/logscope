@@ -9,6 +9,7 @@ import { ALERT_THRESHOLDS, recentErrorCount } from "./alerts.js";
 import { parseSgrMouse, type MouseEvent } from "./mouse.js";
 import type { DashboardTheme } from "./themes.js";
 import { levelIcon, symbol } from "../symbols.js";
+import type { DashboardPanel } from "./layout.js";
 
 export interface DashboardProps {
   file: string;
@@ -17,6 +18,7 @@ export interface DashboardProps {
   activeFilters: string[];
   theme?: DashboardTheme;
   icons?: boolean;
+  panels?: DashboardPanel[];
 }
 
 function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
@@ -64,7 +66,7 @@ function MouseControls({ onMouse }: { onMouse: (event: MouseEvent) => void }): n
  * message groups. ↑/↓ select a group, enter expands its line numbers,
  * q/ctrl+c quits.
  */
-export function Dashboard({ file, entries, activeFilters, theme, icons }: DashboardProps): React.ReactElement {
+export function Dashboard({ file, entries, activeFilters, theme, icons, panels = ["stats", "rate", "groups", "entries"] }: DashboardProps): React.ReactElement {
   const [selected, setSelected] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [browser, setBrowser] = useState(false);
@@ -162,14 +164,14 @@ export function Dashboard({ file, entries, activeFilters, theme, icons }: Dashbo
         alert rule: {ALERT_THRESHOLDS[alertIndex] === null ? "off" : `${ALERT_THRESHOLDS[alertIndex]} errors/min`} · recent errors: {recentErrors} · press a to edit
       </Text>
 
-      <Box gap={2} marginBottom={1}>
+      {panels.includes("stats") && <Box gap={2} marginBottom={1}>
         <StatBox label="lines" value={entries.length} color="white" />
         <StatBox label="errors" value={stats.levels.ERROR} color="red" />
         <StatBox label="warnings" value={stats.levels.WARN} color="yellow" />
         <StatBox label="unparsed" value={stats.levels.UNKNOWN} color="magenta" />
-      </Box>
+      </Box>}
 
-      <Box flexDirection="column" marginBottom={1}>
+      {panels.includes("rate") && <Box flexDirection="column" marginBottom={1}>
         <Text bold>rate over time</Text>
         {series ? (
           <Box flexDirection="column">
@@ -187,9 +189,9 @@ export function Dashboard({ file, entries, activeFilters, theme, icons }: Dashbo
         ) : (
           <Text dimColor>(no timestamped entries yet)</Text>
         )}
-      </Box>
+      </Box>}
 
-      <Box flexDirection="column">
+      {panels.includes("groups") && <Box flexDirection="column">
         <Text bold>
           top message groups{" "}
           <Text dimColor>({groups.length} total · ↑↓ select · enter expand · e entries · a alert · q quit)</Text>
@@ -218,9 +220,9 @@ export function Dashboard({ file, entries, activeFilters, theme, icons }: Dashbo
             </React.Fragment>
           );
         })}
-      </Box>
+      </Box>}
 
-      {browser && (
+      {browser && panels.includes("entries") && (
         <Box flexDirection="column" marginTop={1}>
           <Text bold>entries <Text dimColor>(↑↓ scroll · / search · e close)</Text></Text>
           {searching && <Text color="yellow">/{query}▌</Text>}
