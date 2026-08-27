@@ -9,4 +9,9 @@ describe("dashboard themes", () => {
   test("rejects unknown names", () => {
     expect(() => getTheme("missing")).toThrow("Choose default");
   });
+  test("overrides selected colors", () => {
+    const theme = getTheme("default", { error: "#ff5555", accent: "#00ff00" });
+    expect(theme.levels.ERROR).toBe("#ff5555");
+    expect(theme.accent).toBe("#00ff00");
+  });
 });
