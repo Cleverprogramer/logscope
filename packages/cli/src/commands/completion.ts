@@ -1,22 +1,54 @@
 import type { Command } from "commander";
 
-const SUBCOMMANDS = ["read", "tail", "stats", "dashboard", "watch", "gaps", "spikes", "latency", "advise", "explain", "diff"];
-const FLAGS = [
+export const COMPLETION_SUBCOMMANDS = [
+  "read",
+  "tail",
+  "stats",
+  "dashboard",
+  "correlate",
+  "watch",
+  "gaps",
+  "spikes",
+  "latency",
+  "advise",
+  "explain",
+  "diff",
+  "completion",
+  "serve",
+  "report",
+];
+
+export const COMPLETION_FLAGS = [
   "--level",
   "--grep",
   "--since",
   "--tz",
   "--top",
   "--out",
+  "--format",
   "--json",
   "--quiet",
   "--notify",
   "--alert-rate",
+  "--window",
+  "--before",
+  "--after",
   "--bucket",
   "--sensitivity",
   "--min-gap",
   "--interval",
+  "--poll-ms",
+  "--port",
+  "--md",
+  "--theme",
+  "--compact",
+  "--verbose",
+  "--ascii",
+  "--icons",
+  "--time-format",
+  "--banner",
   "-n",
+  "-o",
 ];
 
 function bashScript(): string {
@@ -25,10 +57,10 @@ _logscope_completions() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
   local prev="\${COMP_WORDS[COMP_CWORD-1]}"
   if [ "$COMP_CWORD" -eq 1 ]; then
-    COMPREPLY=( $(compgen -W "${SUBCOMMANDS.join(" ")}" -- "$cur") )
+    COMPREPLY=( $(compgen -W "${COMPLETION_SUBCOMMANDS.join(" ")}" -- "$cur") )
     return
   fi
-  COMPREPLY=( $(compgen -W "${FLAGS.join(" ")}" -- "$cur") )
+  COMPREPLY=( $(compgen -W "${COMPLETION_FLAGS.join(" ")}" -- "$cur") )
 }
 complete -F _logscope_completions logscope
 `.trimStart();
@@ -38,8 +70,8 @@ function zshScript(): string {
   return `#compdef logscope
 _logscope() {
   local -a subcommands flags
-  subcommands=(${SUBCOMMANDS.map((s) => `"${s}"`).join(" ")})
-  flags=(${FLAGS.map((f) => `"${f}"`).join(" ")})
+  subcommands=(${COMPLETION_SUBCOMMANDS.map((s) => `"${s}"`).join(" ")})
+  flags=(${COMPLETION_FLAGS.map((f) => `"${f}"`).join(" ")})
   if (( CURRENT == 2 )); then
     _describe 'command' subcommands
   else
@@ -51,10 +83,10 @@ compdef _logscope logscope
 }
 
 function fishScript(): string {
-  const lines = SUBCOMMANDS.map(
+  const lines = COMPLETION_SUBCOMMANDS.map(
     (s) => `complete -c logscope -n '__fish_use_subcommand' -a '${s}' -d '${s}'`,
   );
-  lines.push(...FLAGS.map((f) => `complete -c logscope -l ${f.replace(/^--/, "")} -d 'option'`));
+  lines.push(...COMPLETION_FLAGS.map((f) => `complete -c logscope -l ${f.replace(/^--/, "")} -d 'option'`));
   return lines.join("\n") + "\n";
 }
 

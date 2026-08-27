@@ -95,6 +95,7 @@ Run these from the repository root before submitting a pull request:
 ```bash
 bun run typecheck
 bun test
+bun run coverage
 bun run quickstart
 bun run perf:smoke
 ```
