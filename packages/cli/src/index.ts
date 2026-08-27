@@ -15,6 +15,7 @@ import { registerDiffCommand } from "./commands/diff.js";
 import { registerCompletionCommand } from "./commands/completion.js";
 import { registerServeCommand } from "./commands/serve.js";
 import { registerReportCommand } from "./commands/report-cli.js";
+import { registerCorrelateCommand } from "./commands/correlate.js";
 
 const program = new Command();
 
@@ -36,6 +37,7 @@ registerDiffCommand(program);
 registerCompletionCommand(program);
 registerServeCommand(program);
 registerReportCommand(program);
+registerCorrelateCommand(program);
 registerDashboardCommand(program);
 
 program.parse(process.argv);
