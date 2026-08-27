@@ -29,4 +29,9 @@ describe("--tz timezone display", () => {
     expect(out).toContain("05:30:45");
     expect(out).toContain("boom");
   });
+
+  test("formatEntry supports custom timestamp tokens", () => {
+    process.env.NO_COLOR = "1";
+    expect(formatEntry({ line: 0, timestamp: new Date("2024-01-15T10:30:45.123Z"), level: "ERROR", message: "boom", unparsed: false }, undefined, { timeFormat: "HH:mm:ss.SSS" })).toContain("10:30:45.123");
+  });
 });
