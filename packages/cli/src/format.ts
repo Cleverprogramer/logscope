@@ -21,10 +21,18 @@ function colorizeLevel(level: LogLevel, icons = false): string {
 /** Pad level to a fixed width so output columns line up. */
 const LEVEL_WIDTH = 7; // "UNKNOWN".length
 
-export function formatTimestamp(timestamp: Date | null, tz?: string): string {
+export function formatTimestamp(timestamp: Date | null, tz?: string, pattern?: string): string {
   if (!timestamp) return painter().gray("                 ".slice(0, 19));
-  const text = tz ? formatInZone(timestamp, tz) : timestamp.toISOString().replace("T", " ").slice(0, 19);
+  const text = pattern ? formatPattern(timestamp, tz, pattern) : tz ? formatInZone(timestamp, tz) : timestamp.toISOString().replace("T", " ").slice(0, 19);
   return painter().gray(text);
+}
+
+function formatPattern(timestamp: Date, tz: string | undefined, pattern: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: tz ?? "UTC", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 3, hour12: false }).formatToParts(timestamp).reduce<Record<string, string>>((acc, part) => { acc[part.type] = part.value; return acc; }, {});
+  const tokens: Record<string, string> = { YYYY: parts.year!, MM: parts.month!, DD: parts.day!, HH: parts.hour!, mm: parts.minute!, ss: parts.second!, SSS: parts.fractionalSecond! };
+  const remainder = pattern.replace(/YYYY|SSS|MM|DD|HH|mm|ss/g, "");
+  if (/[YMDHmsS]/.test(remainder)) throw new Error("Invalid --time-format. Use YYYY, MM, DD, HH, mm, ss, and SSS tokens.");
+  return pattern.replace(/YYYY|SSS|MM|DD|HH|mm|ss/g, (token) => tokens[token]!);
 }
 
 /**
@@ -76,14 +84,14 @@ export function formatEntry(
     metadata?: Record<string, unknown>;
   },
   tz?: string,
-  opts?: { showSource?: boolean; mode?: "compact" | "verbose"; icons?: boolean },
+  opts?: { showSource?: boolean; mode?: "compact" | "verbose"; icons?: boolean; timeFormat?: string },
 ): string {
   if (opts?.mode === "compact") {
     const prefix = entry.source && opts.showSource ? `[${basename(entry.source)}] ` : "";
     return `${colorizeLevel(entry.level, opts?.icons).trim()} ${prefix}${entry.message.replace(/\s+/g, " ")}`;
   }
   const lineNo = painter().dim(String(entry.line + 1).padStart(5));
-  const ts = formatTimestamp(entry.timestamp, tz);
+  const ts = formatTimestamp(entry.timestamp, tz, opts?.timeFormat);
   const level = colorizeLevel(entry.level, opts?.icons);
   const src =
     opts?.showSource && entry.source

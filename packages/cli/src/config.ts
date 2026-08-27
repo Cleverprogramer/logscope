@@ -15,6 +15,7 @@ export interface LogscopeConfig {
   theme?: string;
   colors?: ThemeColorOverrides;
   dashboard?: { panels?: DashboardPanel[] };
+  timeFormat?: string;
 }
 
 const CONFIG_FILENAME = ".logscoperc";

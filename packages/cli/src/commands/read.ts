@@ -22,6 +22,7 @@ export interface ReadOptions extends LevelFilterOptions {
   verbose?: boolean;
   ascii?: boolean;
   icons?: boolean;
+  timeFormat?: string;
 }
 
 /** `logscope read <files...>` — parse file(s)/globs/stdin and print entries. */
@@ -44,7 +45,7 @@ export async function readCommand(files: string[], options: ReadOptions): Promis
   const filtered = applyFilter(result.entries, options);
 
   for (const entry of filtered) {
-    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { showSource, icons: options.icons, mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
+    console.log(jsonl ? formatEntryJson(entry) : formatEntry(entry, tz, { showSource, icons: options.icons, timeFormat: options.timeFormat, mode: options.compact ? "compact" : options.verbose ? "verbose" : undefined }));
   }
 
   if (!options.quiet && !jsonl) {
@@ -93,6 +94,7 @@ export function registerReadCommand(program: Command): void {
     .option("--verbose", "include full metadata and multiline details")
     .option("--ascii", "use ASCII-only symbols")
     .option("--icons", "prefix levels with semantic icons")
+    .option("--time-format <pattern>", "timestamp tokens: YYYY MM DD HH mm ss SSS")
     .action(async (files: string[], options: ReadOptions) => {
       try {
         await readCommand(files, options);
