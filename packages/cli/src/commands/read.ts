@@ -84,6 +84,8 @@ export function registerReadCommand(program: Command): void {
       "--since <when>",
       'only entries after this time: "30s", "5m", "2h", "7d" or an ISO date',
     )
+    .option("--after <when>", 'window lower bound ("30s", "2h", ISO date)')
+    .option("--before <when>", 'window upper bound ("30s", "2h", ISO date)')
     .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
     .option("--out <format>", 'output format: "text" (default) or "jsonl"')
     .option(

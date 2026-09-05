@@ -121,6 +121,21 @@ logscope watch logs/*.log --interval 2 --top 8
 `watch` repeatedly recomputes the same summary. Both commands support level
 and time filters; `stats --json` is intended for scripts.
 
+### Time windows — `--after` and `--before`
+
+`read`, `stats`, `watch`, `latency`, and `report` accept `--after` and
+`--before` to slice an incident window out of longer-lived logs. Both flags
+accept relative durations (measured back from now) or absolute ISO dates,
+and bounds are inclusive:
+
+```bash
+logscope read app.log --after 2026-08-20T09:03:00Z --before 2026-08-20T09:40:00Z
+logscope stats app.log --after 30m --before 5m --json
+```
+
+Entries without a parseable timestamp never survive a time window.
+`--since <when>` remains a shorthand for `--after <when>` alone.
+
 ### `correlate` — sequence correlation
 
 Measure how often a matching event is followed by another event within a

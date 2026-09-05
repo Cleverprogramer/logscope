@@ -11,6 +11,16 @@ export interface LevelFilterOptions {
    * measured back from now) or an absolute ISO date/datetime.
    */
   since?: string;
+  /**
+   * Time-window lower bound (inclusive): either relative ("30s", "2h",
+   * measured back from now) or an absolute ISO date/datetime.
+   */
+  after?: string;
+  /**
+   * Time-window upper bound (inclusive): either relative ("30s", "2h",
+   * measured back from now) or an absolute ISO date/datetime.
+   */
+  before?: string;
 }
 
 const LEVEL_ALIASES: Record<string, LogLevel> = {
@@ -44,23 +54,31 @@ export function parseDurationMs(input: string): number | null {
  * Throws a friendly error for unrecognizable input.
  */
 export function parseSince(input: string, now: Date = new Date()): Date {
+  return parseTimeBound(input, "--since", now);
+}
+
+/**
+ * Parse a `--after`/`--before` value into a Date with the same semantics as
+ * `--since`: relative durations measured back from now, absolute timestamps
+ * with naive values treated as UTC. Throws a friendly error naming the flag.
+ */
+export function parseTimeBound(input: string, flag: string, now: Date = new Date()): Date {
   const ms = parseDurationMs(input);
   if (ms !== null) return new Date(now.getTime() - ms);
 
-  // Absolute date/datetime; naive values are treated as UTC, consistent
-  // with how log timestamps themselves are parsed.
   const date = parseTimestamp(input);
   if (date) return date;
 
   throw new Error(
-    `Invalid --since value "${input}". Use a duration like 30s, 5m, 2h, 7d or a date like 2024-01-01.`,
+    `Invalid ${flag} value "${input}". Use a duration like 30s, 5m, 2h, 7d or a date like 2024-01-01.`,
   );
 }
 
 /**
  * Build a predicate from the given filter options. All provided filters are
  * ANDed together (an entry must satisfy every one). With no options, every
- * entry passes. Entries without a timestamp fail `--since` (unknowable).
+ * entry passes. Entries without a timestamp fail `--since`, `--after`, and
+ * `--before` (unknowable).
  */
 export function makeFilter(options: LevelFilterOptions): (entry: LogEntry) => boolean {
   const predicates: Array<(entry: LogEntry) => boolean> = [];
@@ -68,6 +86,16 @@ export function makeFilter(options: LevelFilterOptions): (entry: LogEntry) => bo
   if (options.since) {
     const cutoff = parseSince(options.since);
     predicates.push((entry) => entry.timestamp !== null && entry.timestamp >= cutoff);
+  }
+
+  if (options.after) {
+    const after = parseTimeBound(options.after, "--after");
+    predicates.push((entry) => entry.timestamp !== null && entry.timestamp >= after);
+  }
+
+  if (options.before) {
+    const before = parseTimeBound(options.before, "--before");
+    predicates.push((entry) => entry.timestamp !== null && entry.timestamp <= before);
   }
 
   if (options.level) {

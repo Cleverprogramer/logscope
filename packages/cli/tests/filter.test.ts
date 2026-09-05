@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyFilter, makeFilter, parseSince } from "../src/filter.js";
+import { applyFilter, makeFilter, parseSince, parseTimeBound } from "../src/filter.js";
 import { parsePlain } from "../src/parser/plain.js";
 import type { LogEntry } from "../src/types.js";
 
@@ -90,6 +90,61 @@ describe("makeFilter", () => {
 
     test("combines with other filters", () => {
       const result = applyFilter(fixture(), { since: "2024-01-15T10:30:47Z", level: "error" });
+      expect(result).toHaveLength(1);
+      expect(result[0]!.message).toContain("timeout");
+    });
+  });
+
+  describe("--after / --before", () => {
+    test("keeps entries inside an inclusive absolute window", () => {
+      const result = applyFilter(fixture(), {
+        after: "2024-01-15T10:30:46Z",
+        before: "2024-01-15T10:30:47Z",
+      });
+      // WARN at 10:30:46 and INFO at 10:30:47 (bounds are inclusive).
+      expect(result).toHaveLength(2);
+      expect(result.map((e) => e.level)).toEqual(["WARN", "INFO"]);
+    });
+
+    test("--after alone works like an absolute lower bound", () => {
+      const result = applyFilter(fixture(), { after: "2024-01-15T10:30:48Z" });
+      expect(result).toHaveLength(2);
+      expect(result.every((e) => e.level === "ERROR" || e.level === "DEBUG")).toBe(true);
+    });
+
+    test("--before alone caps the window", () => {
+      const result = applyFilter(fixture(), { before: "2024-01-15T10:30:45Z" });
+      expect(result).toHaveLength(1);
+      expect(result[0]!.level).toBe("ERROR");
+    });
+
+    test("parses relative durations against a fixed now", () => {
+      const now = new Date("2026-08-20T12:00:00Z");
+      expect(parseTimeBound("90s", "--after", now).toISOString()).toBe("2026-08-20T11:58:30.000Z");
+      expect(parseTimeBound("2h", "--before", now).toISOString()).toBe("2026-08-20T10:00:00.000Z");
+    });
+
+    test("rejects garbage with a flag-aware error", () => {
+      expect(() => makeFilter({ after: "last tuesday" })({ ...fixture()[0]! })).toThrow(
+        /Invalid --after/,
+      );
+      expect(() => makeFilter({ before: "tomorrow-ish" })({ ...fixture()[0]! })).toThrow(
+        /Invalid --before/,
+      );
+    });
+
+    test("drops timestamp-less entries from the window", () => {
+      const noTs = [{ line: 0, raw: "", timestamp: null, level: "INFO" as const, message: "?", unparsed: false }];
+      expect(applyFilter(noTs, { after: "1h" })).toHaveLength(0);
+      expect(applyFilter(noTs, { before: "1h" })).toHaveLength(0);
+    });
+
+    test("window combines with level and grep filters", () => {
+      const result = applyFilter(fixture(), {
+        after: "2024-01-15T10:30:46Z",
+        before: "2024-01-15T10:30:49Z",
+        level: "error",
+      });
       expect(result).toHaveLength(1);
       expect(result[0]!.message).toContain("timeout");
     });

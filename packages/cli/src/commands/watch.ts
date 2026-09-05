@@ -45,6 +45,8 @@ export function registerWatchCommand(program: Command): void {
     .option("--interval <seconds>", "refresh interval in seconds", "2")
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
+    .option("--after <when>", 'window lower bound ("30s", "2h", ISO date)')
+    .option("--before <when>", 'window upper bound ("30s", "2h", ISO date)')
     .option("--top <n>", "max message groups to show", "10")
     .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: WatchOptions) => {

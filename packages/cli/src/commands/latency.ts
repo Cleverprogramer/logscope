@@ -72,6 +72,8 @@ export function registerLatencyCommand(program: Command): void {
     .argument("<files...>", 'log file paths or glob patterns; "-" for stdin')
     .option("--level <levels>", 'filter by level(s), e.g. "warn,error"')
     .option("--grep <pattern>", "filter by text/regex match")
+    .option("--after <when>", 'window lower bound ("30s", "2h", ISO date)')
+    .option("--before <when>", 'window upper bound ("30s", "2h", ISO date)')
     .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: LatencyOptions) => {
       try {

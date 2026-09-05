@@ -6,6 +6,10 @@ import { formatDuration } from "../analysis/gaps.js";
 export interface ReportOptions {
   level?: string;
   since?: string;
+  /** Window lower bound, same semantics as --since. */
+  after?: string;
+  /** Window upper bound, same semantics as --since. */
+  before?: string;
   top?: string;
 }
 
