@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expandPaths, readLogFiles } from "../src/reader.js";
+import { excludePaths, expandPaths, normalizeExcludePatterns, readLogFiles } from "../src/reader.js";
 
 async function makeLogDir(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "logscope-multi-"));
@@ -44,6 +44,46 @@ describe("multi-file + globs", () => {
     }
   });
 
+  test("exclude patterns match basenames and full paths", async () => {
+    const dir = await makeLogDir();
+    try {
+      const result = await readLogFiles([join(dir, "*.log")], { exclude: "*b.log" });
+      expect(result.totalLines).toBe(2);
+      expect(new Set(result.entries.map((e) => e.source))).toEqual(new Set([join(dir, "a.log")]));
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
+  test("exclude patterns can be repeated or comma-separated", async () => {
+    const dir = await makeLogDir();
+    try {
+      await writeFile(join(dir, "debug.log"), "2024-01-15 10:31:10 WARN noisy\n");
+      const result = await readLogFiles([join(dir, "*.log")], {
+        exclude: ["*debug*", "*b.log,c.txt"],
+      });
+      expect(result.totalLines).toBe(2);
+      expect(new Set(result.entries.map((e) => e.source))).toEqual(new Set([join(dir, "a.log")]));
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
+  test("all excluded candidates → friendly error", async () => {
+    const dir = await makeLogDir();
+    try {
+      const err = (await readLogFiles([join(dir, "*.log")], { exclude: "*.log" }).catch((e) => e)) as Error;
+      expect(err.message).toMatch(/all input files were excluded/);
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
+  test("exclude helpers normalize and filter concrete paths", () => {
+    expect(normalizeExcludePatterns([" *debug* , *.tmp ", ""])).toEqual(["*debug*", "*.tmp"]);
+    expect(excludePaths(["logs/app.log", "logs/app-debug.log"], "*debug*")).toEqual(["logs/app.log"]);
+  });
+
   test("unmatched glob → friendly error", async () => {
     const dir = await makeLogDir();
     try {
@@ -54,7 +94,25 @@ describe("multi-file + globs", () => {
     }
   });
 
-  test("CLI end-to-end: read <dir/*.log> shows [source] prefixes", () => {
-    // covered via unit tests above; CLI wiring shares the same code path
+  test("CLI end-to-end: read <dir/*.log> honors --exclude", async () => {
+    const dir = await makeLogDir();
+    try {
+      await writeFile(join(dir, "debug.log"), "2024-01-15 10:30:46 ERROR skip\n");
+      const proc = Bun.spawnSync([
+        "bun",
+        "run",
+        "packages/cli/src/index.ts",
+        "read",
+        join(dir, "*.log"),
+        "--exclude",
+        "*debug*",
+      ]);
+      const out = proc.stdout.toString();
+      expect(proc.exitCode).toBe(0);
+      expect(out).toContain("Payment failed");
+      expect(out).not.toContain("skip");
+    } finally {
+      await rm(dir, { recursive: true });
+    }
   });
 });

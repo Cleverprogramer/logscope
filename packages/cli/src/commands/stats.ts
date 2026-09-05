@@ -12,6 +12,7 @@ export interface StatsOptions extends LevelFilterOptions {
   json?: boolean;
   /** Max groups to include in the report. */
   top?: string;
+  exclude?: string[];
 }
 
 export interface StatsReport {
@@ -34,7 +35,7 @@ export interface StatsReport {
  * `--json` exports the same data for piping into other tools.
  */
 export async function computeStats(files: string[], options: StatsOptions): Promise<StatsReport> {
-  const result = await readLogFiles(files);
+  const result = await readLogFiles(files, { exclude: options.exclude });
   const cutoff = options.since ? parseSince(options.since) : null;
   const matches = makeFilter({ level: options.level, grep: options.grep });
 
@@ -148,6 +149,7 @@ export function registerStatsCommand(program: Command): void {
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
     .option("--top <n>", "max message groups to show", "10")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .option("--json", "output machine-readable JSON")
     .action(async (files: string[], options: StatsOptions) => {
       try {
@@ -157,4 +159,9 @@ export function registerStatsCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

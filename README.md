@@ -70,7 +70,9 @@ the asset with `bun run demo:gif`.
 | `report` | Write a self-contained HTML or Markdown report | `logscope report app.log -o report.html` |
 
 All file-taking commands accept multiple paths and shell globs where shown;
-`-` reads stdin. Input files can mix plain-text and JSONL records. Unparseable
+`-` reads stdin. Most multi-file analysis commands also accept repeated or
+comma-separated `--exclude <glob>` patterns, matching either the expanded path
+or its basename. Input files can mix plain-text and JSONL records. Unparseable
 lines are retained as `UNKNOWN` entries so one bad line never aborts a run.
 
 ## Parsing and filtering
@@ -79,7 +81,7 @@ lines are retained as `UNKNOWN` entries so one bad line never aborts a run.
 
 ```bash
 logscope read app.log
-logscope read logs/*.log --level error,warn --grep 'database|timeout' --since 2h
+logscope read logs/*.log --exclude '*debug*' --level error,warn --grep 'database|timeout' --since 2h
 cat app.log | logscope read - --out jsonl > entries.ndjson
 logscope read app.log --tz America/New_York --time-format 'HH:mm:ss.SSS'
 logscope read app.log --format '{timestamp} [{level}] {message}'

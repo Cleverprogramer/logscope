@@ -12,6 +12,7 @@ export interface SpikesOptions {
   sensitivity?: string;
   /** Which level to watch (defaults to errors). */
   level?: string;
+  exclude?: string[];
 }
 
 /**
@@ -27,7 +28,7 @@ export async function spikesCommand(files: string[], options: SpikesOptions): Pr
     throw new Error(`Invalid --sensitivity "${options.sensitivity}". Use a positive number.`);
   }
 
-  const result = await readLogFiles(files);
+  const result = await readLogFiles(files, { exclude: options.exclude });
   const wanted = (options.level ?? "error").toUpperCase();
   const times = result.entries
     .filter((e) => e.level === wanted && e.timestamp)
@@ -61,6 +62,7 @@ export function registerSpikesCommand(program: Command): void {
     .option("--bucket <duration>", "bucket width (10s, 1m, 5m)", "1m")
     .option("--sensitivity <z>", "robust z-score threshold", "3")
     .option("--level <level>", "which level to watch", "error")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: SpikesOptions) => {
       try {
         await spikesCommand(files, options);
@@ -69,4 +71,9 @@ export function registerSpikesCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

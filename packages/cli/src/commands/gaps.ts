@@ -9,6 +9,7 @@ import type { LogEntry } from "../types.js";
 export interface GapsOptions {
   /** Minimum silence length to report, e.g. "5m". */
   minGap?: string;
+  exclude?: string[];
 }
 
 function renderGap(gap: Gap, rank: number): string {
@@ -31,7 +32,7 @@ export async function gapsCommand(files: string[], options: GapsOptions): Promis
     throw new Error(`Invalid --min-gap "${options.minGap}". Use durations like 30s, 5m, 2h.`);
   }
 
-  const result = await readLogFiles(files);
+  const result = await readLogFiles(files, { exclude: options.exclude });
   const entries: LogEntry[] = result.entries;
   const gaps = findGaps(entries, minGapMs);
 
@@ -53,6 +54,7 @@ export function registerGapsCommand(program: Command): void {
     .description("Find silent periods where nothing was logged")
     .argument("<files...>", 'log file paths or glob patterns; "-" for stdin')
     .option("--min-gap <duration>", "minimum silence to report (30s, 5m, 2h)", "5m")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: GapsOptions) => {
       try {
         await gapsCommand(files, options);
@@ -61,4 +63,9 @@ export function registerGapsCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

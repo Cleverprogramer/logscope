@@ -30,6 +30,7 @@ const CURRENT_FLAGS = [
   "--tz",
   "--top",
   "--out",
+  "--exclude",
   "--format",
   "--json",
   "--quiet",

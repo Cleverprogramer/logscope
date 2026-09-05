@@ -9,6 +9,7 @@ export interface ReportCommandOptions extends ReportOptions {
   /** Output path (.html default, .md for markdown). */
   o?: string;
   md?: boolean;
+  exclude?: string[];
 }
 
 /**
@@ -45,6 +46,7 @@ export function registerReportCommand(program: Command): void {
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
     .option("--top <n>", "max message groups to show", "10")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: ReportCommandOptions) => {
       try {
         await reportCommand(files, options);
@@ -53,4 +55,9 @@ export function registerReportCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

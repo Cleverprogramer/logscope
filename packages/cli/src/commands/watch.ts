@@ -46,6 +46,7 @@ export function registerWatchCommand(program: Command): void {
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
     .option("--top <n>", "max message groups to show", "10")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: WatchOptions) => {
       try {
         await watchCommand(files, options);
@@ -54,4 +55,9 @@ export function registerWatchCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

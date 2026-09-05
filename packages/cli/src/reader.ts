@@ -1,10 +1,16 @@
 import { readFile, readdir } from "node:fs/promises";
+import { basename } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { parseLog } from "./parser/index.js";
 import type { ParseOptions, ParseResult } from "./types.js";
 
 const BINARY_SAMPLE_BYTES = 8 * 1024;
 const MAX_CONTROL_BYTE_RATIO = 0.3;
+
+export interface ReadLogFilesOptions extends ParseOptions {
+  /** Glob patterns to remove from the expanded input set. */
+  exclude?: string | string[];
+}
 
 export function isLikelyBinaryContent(raw: Buffer): boolean {
   if (raw.length === 0) return false;
@@ -130,22 +136,61 @@ export async function expandPaths(pattern: string): Promise<string[]> {
   return matches;
 }
 
+export function normalizeExcludePatterns(exclude: string | string[] | undefined): string[] {
+  const values = Array.isArray(exclude) ? exclude : exclude ? [exclude] : [];
+  return values
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function globToRegExp(pattern: string): RegExp {
+  return new RegExp(
+    "^" +
+      pattern
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*\*/g, "\u0000")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\u0000/g, ".*")
+        .replace(/\?/g, ".") +
+      "$",
+  );
+}
+
+export function excludePaths(paths: string[], exclude: string | string[] | undefined): string[] {
+  const patterns = normalizeExcludePatterns(exclude);
+  if (patterns.length === 0) return paths;
+
+  const matchers = patterns.map(globToRegExp);
+  const kept = paths.filter((path) => {
+    const name = basename(path);
+    return !matchers.some((matcher) => matcher.test(path) || matcher.test(name));
+  });
+
+  if (paths.length > 0 && kept.length === 0) {
+    throw new Error(`all input files were excluded by: ${patterns.join(", ")}`);
+  }
+
+  return kept;
+}
+
 /**
  * Read and parse multiple sources (files, globs, or "-" stdin) into a
  * single merged ParseResult. Entries keep per-file line numbers and gain
  * a `source` field; totals aggregate across every input.
  */
-export async function readLogFiles(paths: string[], options: ParseOptions = {}): Promise<ParseResult> {
+export async function readLogFiles(paths: string[], options: ReadLogFilesOptions = {}): Promise<ParseResult> {
   const expanded: string[] = [];
   for (const path of paths) {
     expanded.push(...(await expandPaths(path)));
   }
 
+  const selected = excludePaths(expanded, options.exclude);
   const entries: ParseResult["entries"] = [];
   let unparsedLines = 0;
   let totalLines = 0;
 
-  for (const path of expanded) {
+  for (const path of selected) {
     const result = await readLogFile(path, options);
     totalLines += result.totalLines;
     unparsedLines += result.unparsedLines;

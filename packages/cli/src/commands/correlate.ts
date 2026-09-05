@@ -9,6 +9,7 @@ export interface CorrelateOptions {
   after: string;
   window?: string;
   json?: boolean;
+  exclude?: string[];
 }
 
 function compilePattern(value: string, name: string): RegExp {
@@ -24,7 +25,7 @@ export async function correlateCommand(files: string[], options: CorrelateOption
   const windowMs = parseDurationMs(options.window ?? "5m");
   if (!windowMs) throw new Error(`Invalid --window "${options.window}". Use 10s, 5m, or 1h.`);
 
-  const result = await readLogFiles(files);
+  const result = await readLogFiles(files, { exclude: options.exclude });
   const correlation = correlateSequence(
     result.entries,
     compilePattern(options.before, "before"),
@@ -72,6 +73,7 @@ export function registerCorrelateCommand(program: Command): void {
     .requiredOption("--after <pattern>", "regex for the following event")
     .option("--window <duration>", "maximum delay between events (10s, 5m, 1h)", "5m")
     .option("--json", "output machine-readable JSON")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: CorrelateOptions) => {
       try {
         await correlateCommand(files, options);
@@ -80,4 +82,9 @@ export function registerCorrelateCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

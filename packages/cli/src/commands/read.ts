@@ -23,6 +23,7 @@ export interface ReadOptions extends LevelFilterOptions {
   ascii?: boolean;
   icons?: boolean;
   timeFormat?: string;
+  exclude?: string[];
 }
 
 /** `logscope read <files...>` — parse file(s)/globs/stdin and print entries. */
@@ -37,6 +38,7 @@ export async function readCommand(files: string[], options: ReadOptions): Promis
   }
   const result = await readLogFiles(files, {
     formatTemplate: options.format,
+    exclude: options.exclude,
   });
   const showSource = result.entries.some((e) => e.source !== undefined);
 
@@ -88,6 +90,7 @@ export function registerReadCommand(program: Command): void {
       "--format <template>",
       'custom line template, e.g. "{timestamp} [{level}] {message}"',
     )
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .option("-q, --quiet", "hide the summary line")
     .option("-t, --top <n>", "show the N most frequent message groups", "10")
     .option("--compact", "minimal one-line human output")
@@ -103,4 +106,9 @@ export function registerReadCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }
