@@ -16,6 +16,7 @@ import { registerCompletionCommand } from "./commands/completion.js";
 import { registerServeCommand } from "./commands/serve.js";
 import { registerReportCommand } from "./commands/report-cli.js";
 import { registerCorrelateCommand } from "./commands/correlate.js";
+import { registerHeatmapCommand } from "./commands/heatmap.js";
 
 const program = new Command();
 
@@ -38,6 +39,7 @@ registerCompletionCommand(program);
 registerServeCommand(program);
 registerReportCommand(program);
 registerCorrelateCommand(program);
+registerHeatmapCommand(program);
 registerDashboardCommand(program);
 
 program.parse(process.argv);

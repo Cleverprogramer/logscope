@@ -61,6 +61,7 @@ the asset with `bun run demo:gif`.
 | `watch` | Re-render stats on an interval | `logscope watch app.log --interval 5` |
 | `gaps` | Find silent periods in timestamped logs | `logscope gaps app.log --min-gap 10m` |
 | `spikes` | Detect statistical level-rate anomalies | `logscope spikes app.log --bucket 5m` |
+| `heatmap` | Plot activity over time as per-bucket bars | `logscope heatmap app.log --bucket 1m` |
 | `latency` | Extract durations and calculate p50/p95/p99 | `logscope latency app.log` |
 | `advise` | Match frequent errors against offline rules | `logscope advise app.log --top 5` |
 | `explain` | Show lines surrounding matching entries | `logscope explain app.log --before 5 --after 3` |
@@ -162,6 +163,20 @@ logscope latency app.log --level warn,error --grep 'duration|latency'
 robust z-score over time buckets, so it is statistical rather than AI-based.
 `latency` recognizes common duration forms such as `123ms`, `2.4s`, and
 `duration=850ms`, then prints p50, p95, and p99 values.
+
+### `heatmap` — activity over time
+
+```bash
+logscope heatmap app.log --bucket 1m
+logscope heatmap logs/*.log --bucket 5m --ascii
+logscope heatmap app.log --json | jq '.buckets | map(.total)'
+```
+
+Each row is one time bucket with a bar scaled to the busiest bucket, the
+entry count, and an error/warn breakdown. Silent buckets stay in the grid,
+so outages show up as empty rows instead of disappearing. `--json` emits
+the raw per-bucket counts for scripting, and `--ascii` keeps restricted
+terminals happy.
 
 ### `advise`, `explain`, and `diff`
 
