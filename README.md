@@ -62,6 +62,7 @@ the asset with `bun run demo:gif`.
 | `gaps` | Find silent periods in timestamped logs | `logscope gaps app.log --min-gap 10m` |
 | `spikes` | Detect statistical level-rate anomalies | `logscope spikes app.log --bucket 5m` |
 | `heatmap` | Plot activity over time as per-bucket bars | `logscope heatmap app.log --bucket 1m` |
+| `brief` | One-shot executive digest for incidents | `logscope brief app.log --json` |
 | `latency` | Extract durations and calculate p50/p95/p99 | `logscope latency app.log` |
 | `advise` | Match frequent errors against offline rules | `logscope advise app.log --top 5` |
 | `explain` | Show lines surrounding matching entries | `logscope explain app.log --before 5 --after 3` |
@@ -177,6 +178,20 @@ entry count, and an error/warn breakdown. Silent buckets stay in the grid,
 so outages show up as empty rows instead of disappearing. `--json` emits
 the raw per-bucket counts for scripting, and `--ascii` keeps restricted
 terminals happy.
+
+### `brief` — one-shot incident digest
+
+```bash
+logscope brief app.log
+logscope brief logs/*.log --top 5 --json
+```
+
+`brief` composes the offline analysis primitives into a single executive
+summary: totals and covered time range, error rate, the top normalized error
+groups, latency percentiles extracted from message durations, the longest
+silence, and any statistical error-rate spike. It answers "what happened
+here?" in one command — use `--json` to feed the same digest into scripts,
+bots, or ticket templates.
 
 ### `advise`, `explain`, and `diff`
 

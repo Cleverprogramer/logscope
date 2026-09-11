@@ -10,6 +10,7 @@ export const COMPLETION_SUBCOMMANDS = [
   "gaps",
   "spikes",
   "heatmap",
+  "brief",
   "latency",
   "advise",
   "explain",

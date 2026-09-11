@@ -13,6 +13,7 @@ const CURRENT_COMMANDS = [
   "gaps",
   "spikes",
   "heatmap",
+  "brief",
   "latency",
   "advise",
   "explain",
