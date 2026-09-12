@@ -5,7 +5,9 @@ import { readLogFiles } from "../reader.js";
 import { makeFilter, type LevelFilterOptions } from "../filter.js";
 import { extractDurations, extractRoute, summarize, type LatencyStats } from "../analysis/latency.js";
 
-export interface LatencyOptions extends LevelFilterOptions {}
+export interface LatencyOptions extends LevelFilterOptions {
+  exclude?: string[];
+}
 
 interface RouteBucket {
   route: string;
@@ -26,7 +28,7 @@ function renderRow(label: string, stats: LatencyStats): string {
  * report percentiles overall and per route.
  */
 export async function latencyCommand(files: string[], options: LatencyOptions): Promise<void> {
-  const result = await readLogFiles(files);
+  const result = await readLogFiles(files, { exclude: options.exclude });
   const matches = makeFilter(options);
 
   const all: number[] = [];
@@ -70,6 +72,9 @@ export function registerLatencyCommand(program: Command): void {
     .argument("<files...>", 'log file paths or glob patterns; "-" for stdin')
     .option("--level <levels>", 'filter by level(s), e.g. "warn,error"')
     .option("--grep <pattern>", "filter by text/regex match")
+    .option("--after <when>", 'window lower bound ("30s", "2h", ISO date)')
+    .option("--before <when>", 'window upper bound ("30s", "2h", ISO date)')
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: LatencyOptions) => {
       try {
         await latencyCommand(files, options);
@@ -78,4 +83,9 @@ export function registerLatencyCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

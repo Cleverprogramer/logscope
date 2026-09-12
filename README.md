@@ -61,6 +61,8 @@ the asset with `bun run demo:gif`.
 | `watch` | Re-render stats on an interval | `logscope watch app.log --interval 5` |
 | `gaps` | Find silent periods in timestamped logs | `logscope gaps app.log --min-gap 10m` |
 | `spikes` | Detect statistical level-rate anomalies | `logscope spikes app.log --bucket 5m` |
+| `heatmap` | Plot activity over time as per-bucket bars | `logscope heatmap app.log --bucket 1m` |
+| `brief` | One-shot executive digest for incidents | `logscope brief app.log --json` |
 | `latency` | Extract durations and calculate p50/p95/p99 | `logscope latency app.log` |
 | `advise` | Match frequent errors against offline rules | `logscope advise app.log --top 5` |
 | `explain` | Show lines surrounding matching entries | `logscope explain app.log --before 5 --after 3` |
@@ -70,7 +72,9 @@ the asset with `bun run demo:gif`.
 | `report` | Write a self-contained HTML or Markdown report | `logscope report app.log -o report.html` |
 
 All file-taking commands accept multiple paths and shell globs where shown;
-`-` reads stdin. Input files can mix plain-text and JSONL records. Unparseable
+`-` reads stdin. Most multi-file analysis commands also accept repeated or
+comma-separated `--exclude <glob>` patterns, matching either the expanded path
+or its basename. Input files can mix plain-text and JSONL records. Unparseable
 lines are retained as `UNKNOWN` entries so one bad line never aborts a run.
 
 ## Parsing and filtering
@@ -79,7 +83,7 @@ lines are retained as `UNKNOWN` entries so one bad line never aborts a run.
 
 ```bash
 logscope read app.log
-logscope read logs/*.log --level error,warn --grep 'database|timeout' --since 2h
+logscope read logs/*.log --exclude '*debug*' --level error,warn --grep 'database|timeout' --since 2h
 cat app.log | logscope read - --out jsonl > entries.ndjson
 logscope read app.log --tz America/New_York --time-format 'HH:mm:ss.SSS'
 logscope read app.log --format '{timestamp} [{level}] {message}'
@@ -119,6 +123,21 @@ logscope watch logs/*.log --interval 2 --top 8
 `watch` repeatedly recomputes the same summary. Both commands support level
 and time filters; `stats --json` is intended for scripts.
 
+### Time windows — `--after` and `--before`
+
+`read`, `stats`, `watch`, `latency`, and `report` accept `--after` and
+`--before` to slice an incident window out of longer-lived logs. Both flags
+accept relative durations (measured back from now) or absolute ISO dates,
+and bounds are inclusive:
+
+```bash
+logscope read app.log --after 2026-08-20T09:03:00Z --before 2026-08-20T09:40:00Z
+logscope stats app.log --after 30m --before 5m --json
+```
+
+Entries without a parseable timestamp never survive a time window.
+`--since <when>` remains a shorthand for `--after <when>` alone.
+
 ### `correlate` — sequence correlation
 
 Measure how often a matching event is followed by another event within a
@@ -145,6 +164,34 @@ logscope latency app.log --level warn,error --grep 'duration|latency'
 robust z-score over time buckets, so it is statistical rather than AI-based.
 `latency` recognizes common duration forms such as `123ms`, `2.4s`, and
 `duration=850ms`, then prints p50, p95, and p99 values.
+
+### `heatmap` — activity over time
+
+```bash
+logscope heatmap app.log --bucket 1m
+logscope heatmap logs/*.log --bucket 5m --ascii
+logscope heatmap app.log --json | jq '.buckets | map(.total)'
+```
+
+Each row is one time bucket with a bar scaled to the busiest bucket, the
+entry count, and an error/warn breakdown. Silent buckets stay in the grid,
+so outages show up as empty rows instead of disappearing. `--json` emits
+the raw per-bucket counts for scripting, and `--ascii` keeps restricted
+terminals happy.
+
+### `brief` — one-shot incident digest
+
+```bash
+logscope brief app.log
+logscope brief logs/*.log --top 5 --json
+```
+
+`brief` composes the offline analysis primitives into a single executive
+summary: totals and covered time range, error rate, the top normalized error
+groups, latency percentiles extracted from message durations, the longest
+silence, and any statistical error-rate spike. It answers "what happened
+here?" in one command — use `--json` to feed the same digest into scripts,
+bots, or ticket templates.
 
 ### `advise`, `explain`, and `diff`
 

@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import type { Command } from "commander";
 import { applyConfigDefaults, getConfig } from "../config.js";
-import { makeFilter, parseSince, type LevelFilterOptions } from "../filter.js";
+import { makeFilter, type LevelFilterOptions } from "../filter.js";
 import { formatGroups } from "../format.js";
 import { groupEntries, type LogGroup } from "../grouping/index.js";
 import { readLogFiles } from "../reader.js";
@@ -12,6 +12,7 @@ export interface StatsOptions extends LevelFilterOptions {
   json?: boolean;
   /** Max groups to include in the report. */
   top?: string;
+  exclude?: string[];
 }
 
 export interface StatsReport {
@@ -34,15 +35,16 @@ export interface StatsReport {
  * `--json` exports the same data for piping into other tools.
  */
 export async function computeStats(files: string[], options: StatsOptions): Promise<StatsReport> {
-  const result = await readLogFiles(files);
-  const cutoff = options.since ? parseSince(options.since) : null;
-  const matches = makeFilter({ level: options.level, grep: options.grep });
-
-  const entries = result.entries.filter((entry) => {
-    if (cutoff && (!entry.timestamp || entry.timestamp < cutoff)) return false;
-    if (!matches(entry)) return false;
-    return true;
+  const result = await readLogFiles(files, { exclude: options.exclude });
+  const matches = makeFilter({
+    level: options.level,
+    grep: options.grep,
+    since: options.since,
+    after: options.after,
+    before: options.before,
   });
+
+  const entries = result.entries.filter((entry) => matches(entry));
 
   const levels: Record<LogLevel, number> = {
     ERROR: 0,
@@ -147,7 +149,10 @@ export function registerStatsCommand(program: Command): void {
     .argument("<files...>", "log file paths or glob patterns; \"-\" for stdin")
     .option("--level <levels>", 'filter by level(s), e.g. "error,warn"')
     .option("--since <when>", 'only include entries after this time ("30s", "2h", ISO date)')
+    .option("--after <when>", 'window lower bound ("30s", "2h", ISO date)')
+    .option("--before <when>", 'window upper bound ("30s", "2h", ISO date)')
     .option("--top <n>", "max message groups to show", "10")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .option("--json", "output machine-readable JSON")
     .action(async (files: string[], options: StatsOptions) => {
       try {
@@ -157,4 +162,9 @@ export function registerStatsCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

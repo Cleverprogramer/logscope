@@ -8,6 +8,7 @@ import { matchKnowledge } from "../analysis/kb.js";
 export interface AdviseOptions {
   /** Max groups to consider. */
   top?: string;
+  exclude?: string[];
 }
 
 const CATEGORY_COLORS = {
@@ -25,7 +26,7 @@ const CATEGORY_COLORS = {
  * the offline knowledge base and print targeted suggestions.
  */
 export async function adviseCommand(files: string[], options: AdviseOptions): Promise<void> {
-  const result = await readLogFiles(files);
+  const result = await readLogFiles(files, { exclude: options.exclude });
   const groups = groupEntries(result.entries).filter((g) => g.level === "ERROR");
   const topN = Math.max(1, Number.parseInt(options.top ?? "10", 10) || 10);
 
@@ -58,6 +59,7 @@ export function registerAdviseCommand(program: Command): void {
     .description("Match frequent errors against an offline known-error knowledge base")
     .argument("<files...>", 'log file paths or glob patterns; "-" for stdin')
     .option("--top <n>", "max groups to consider", "10")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: AdviseOptions) => {
       try {
         await adviseCommand(files, options);
@@ -66,4 +68,9 @@ export function registerAdviseCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

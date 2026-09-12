@@ -8,6 +8,7 @@ import { diffGroups } from "../analysis/diff.js";
 export interface DiffOptions {
   /** Only compare groups at this level (default: all). */
   level?: string;
+  exclude?: string[];
 }
 
 function section(title: string, color: "red" | "green" | "yellow", rows: string[]): void {
@@ -24,8 +25,8 @@ export async function diffCommand(files: string[], options: DiffOptions): Promis
     throw new Error("diff needs exactly two files: logscope diff BEFORE AFTER");
   }
   const [beforeResult, afterResult] = await Promise.all([
-    readLogFiles([files[0]!]),
-    readLogFiles([files[1]!]),
+    readLogFiles([files[0]!], { exclude: options.exclude }),
+    readLogFiles([files[1]!], { exclude: options.exclude }),
   ]);
 
   const filterLevel = options.level?.toUpperCase();
@@ -61,6 +62,7 @@ export function registerDiffCommand(program: Command): void {
     .argument("<before>", "baseline log file")
     .argument("<after>", "comparison log file")
     .option("--level <level>", "only compare this level, e.g. ERROR")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (before: string, after: string, options: DiffOptions) => {
       try {
         await diffCommand([before, after], options);
@@ -69,4 +71,9 @@ export function registerDiffCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

@@ -12,6 +12,7 @@ export interface ExplainOptions extends LevelFilterOptions {
   before?: string;
   /** Context lines after each match. */
   after?: string;
+  exclude?: string[];
 }
 
 function renderLine(entry: LogEntry | undefined, isTarget: boolean): string {
@@ -31,7 +32,7 @@ export async function explainCommand(files: string[], options: ExplainOptions): 
   const before = Math.max(0, Number.parseInt(options.before ?? "10", 10) || 10);
   const after = Math.max(0, Number.parseInt(options.after ?? "2", 10) || 2);
 
-  const result = await readLogFiles(files);
+  const result = await readLogFiles(files, { exclude: options.exclude });
   // Default target filter: errors (and warns when no explicit level given).
   const matches = makeFilter(options.level || options.grep ? options : { grep: options.grep });
   const isTarget = options.level || options.grep
@@ -66,6 +67,7 @@ export function registerExplainCommand(program: Command): void {
     .option("--grep <pattern>", "explain entries matching a pattern instead")
     .option("--before <n>", "context lines before each match", "10")
     .option("--after <n>", "context lines after each match", "2")
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: ExplainOptions) => {
       try {
         await explainCommand(files, options);
@@ -74,4 +76,9 @@ export function registerExplainCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

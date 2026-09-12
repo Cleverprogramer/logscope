@@ -29,6 +29,24 @@ describe("stats command helpers", () => {
     expect(report.topGroups).toHaveLength(0);
   });
 
+  test("computeStats honors --after/--before incident windows", async () => {
+    const full = await computeStats(["samples/sample.log"], {});
+    const windowed = await computeStats(["samples/sample.log"], {
+      after: "2026-08-20T09:03:00Z",
+      before: "2026-08-20T09:04:00Z",
+    });
+    expect(windowed.totalLines).toBeGreaterThan(0);
+    expect(windowed.totalLines).toBeLessThan(full.totalLines);
+    expect(windowed.timeRange.first! >= "2026-08-20T09:03:00").toBe(true);
+    expect(windowed.timeRange.last! <= "2026-08-20T09:04:00").toBe(true);
+  });
+
+  test("computeStats rejects an invalid window bound", async () => {
+    await expect(computeStats(["samples/sample.log"], { after: "next week" })).rejects.toThrow(
+      /Invalid --after/,
+    );
+  });
+
   test("renderReport handles an empty result", () => {
     process.env.NO_COLOR = "1";
     const report: StatsReport = {

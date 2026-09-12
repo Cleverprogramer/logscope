@@ -23,6 +23,7 @@ export interface ReadOptions extends LevelFilterOptions {
   ascii?: boolean;
   icons?: boolean;
   timeFormat?: string;
+  exclude?: string[];
 }
 
 /** `logscope read <files...>` — parse file(s)/globs/stdin and print entries. */
@@ -37,6 +38,7 @@ export async function readCommand(files: string[], options: ReadOptions): Promis
   }
   const result = await readLogFiles(files, {
     formatTemplate: options.format,
+    exclude: options.exclude,
   });
   const showSource = result.entries.some((e) => e.source !== undefined);
 
@@ -82,12 +84,15 @@ export function registerReadCommand(program: Command): void {
       "--since <when>",
       'only entries after this time: "30s", "5m", "2h", "7d" or an ISO date',
     )
+    .option("--after <when>", 'window lower bound ("30s", "2h", ISO date)')
+    .option("--before <when>", 'window upper bound ("30s", "2h", ISO date)')
     .option("--tz <zone>", "display timestamps in an IANA timezone, e.g. America/New_York")
     .option("--out <format>", 'output format: "text" (default) or "jsonl"')
     .option(
       "--format <template>",
       'custom line template, e.g. "{timestamp} [{level}] {message}"',
     )
+    .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .option("-q, --quiet", "hide the summary line")
     .option("-t, --top <n>", "show the N most frequent message groups", "10")
     .option("--compact", "minimal one-line human output")
@@ -103,4 +108,9 @@ export function registerReadCommand(program: Command): void {
         process.exitCode = 1;
       }
     });
+}
+
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
 }

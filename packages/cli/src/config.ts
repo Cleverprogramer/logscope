@@ -12,6 +12,7 @@ export interface LogscopeConfig {
   tz?: string;
   interval?: string;
   out?: string;
+  exclude?: string;
   theme?: string;
   colors?: ThemeColorOverrides;
   dashboard?: { panels?: DashboardPanel[] };
