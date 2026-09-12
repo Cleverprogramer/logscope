@@ -63,6 +63,7 @@ the asset with `bun run demo:gif`.
 | `spikes` | Detect statistical level-rate anomalies | `logscope spikes app.log --bucket 5m` |
 | `heatmap` | Plot activity over time as per-bucket bars | `logscope heatmap app.log --bucket 1m` |
 | `brief` | One-shot executive digest for incidents | `logscope brief app.log --json` |
+| `trace` | Follow one request across interleaved lines | `logscope trace app.log --min-events 2` |
 | `latency` | Extract durations and calculate p50/p95/p99 | `logscope latency app.log` |
 | `advise` | Match frequent errors against offline rules | `logscope advise app.log --top 5` |
 | `explain` | Show lines surrounding matching entries | `logscope explain app.log --before 5 --after 3` |
@@ -192,6 +193,19 @@ groups, latency percentiles extracted from message durations, the longest
 silence, and any statistical error-rate spike. It answers "what happened
 here?" in one command — use `--json` to feed the same digest into scripts,
 bots, or ticket templates.
+
+### `trace` — follow one request
+
+```bash
+logscope trace app.log --min-events 2
+logscope trace app.log --id 'session=([\w-]+)' --limit 5 --json
+```
+
+`trace` extracts correlation IDs from log lines — `request_id=…`,
+`traceId=…`, UUIDs, long hex hashes, or `[bracket-tokens]` — and prints one
+timeline per ID ordered by timestamp, with the event count, span, and level
+breakdown. Pass `--id <regex>` when your app uses its own format (the first
+capture group wins), and `--min-events` to hide single-line noise.
 
 ### `advise`, `explain`, and `diff`
 
