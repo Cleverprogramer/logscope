@@ -18,6 +18,7 @@ import { registerReportCommand } from "./commands/report-cli.js";
 import { registerCorrelateCommand } from "./commands/correlate.js";
 import { registerHeatmapCommand } from "./commands/heatmap.js";
 import { registerBriefCommand } from "./commands/brief.js";
+import { registerTraceCommand } from "./commands/trace.js";
 
 const program = new Command();
 
@@ -42,6 +43,7 @@ registerReportCommand(program);
 registerCorrelateCommand(program);
 registerHeatmapCommand(program);
 registerBriefCommand(program);
+registerTraceCommand(program);
 registerDashboardCommand(program);
 
 program.parse(process.argv);
