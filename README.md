@@ -71,6 +71,7 @@ the asset with `bun run demo:gif`.
 | `completion` | Emit bash, zsh, or fish completions | `logscope completion zsh` |
 | `serve` | Accept HTTP log posts and append them to a file | `logscope serve --port 7600 --out ingest.log` |
 | `report` | Write a self-contained HTML or Markdown report | `logscope report app.log -o report.html` |
+| `metrics` | Emit the stats report as Prometheus text format | `logscope metrics app.log` |
 
 All file-taking commands accept multiple paths and shell globs where shown;
 `-` reads stdin. Most multi-file analysis commands also accept repeated or
@@ -280,6 +281,21 @@ logscope dashboard ingest.log
 
 `POST /logs` appends the request body verbatim (adding a final newline when
 needed). `GET /healthz` returns `ok`; all other routes return 404.
+
+### `metrics` — Prometheus export
+
+```bash
+logscope metrics app.log
+logscope metrics logs/*.log --level error,warn --prefix myapp \
+  | curl --data-binary @- http://pushgateway:9091/metrics/job/logscope
+```
+
+Emits the same data as `stats --json` in Prometheus text format (0.0.4):
+`*_lines_total` and `*_unparsed_lines_total` counters, per-level
+`*_level_total` counters, `*_first_timestamp_seconds` /
+`*_last_timestamp_seconds` / `*_span_seconds` gauges, and labeled
+`*_group_total` samples for the top message groups. `--prefix` namespaces
+the metric names for multi-source setups.
 
 ### `completion` — shell integration
 
