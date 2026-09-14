@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeBrief, renderBrief } from "../src/commands/brief.js";
+import { computeBrief, renderBrief, renderBriefMarkdown } from "../src/commands/brief.js";
 import type { LogEntry } from "../src/types.js";
 
 const at = (iso: string, level: LogEntry["level"], message: string): LogEntry => ({
@@ -95,7 +95,9 @@ describe("renderBrief", () => {
     const text = lines.join("\n");
     expect(lines[0]).toContain("9 lines");
     expect(lines[0]).toContain("77.8% errors");
-    expect(text).toContain("top error 1. ×6 Payment failed for order 8846");
+    expect(lines[0]).toContain("CRITICAL");
+    expect(text).toContain("── top 2 error group(s) ──");
+    expect(text).toContain("×6 Payment failed for order 8846");
     expect(text).toContain("latency: p50 300ms");
     expect(text).toContain("longest silence: 10m 10s");
     expect(text).toContain("spike: 5 errors around 09:00:10 (z=∞)");
@@ -108,3 +110,110 @@ describe("renderBrief", () => {
     expect(lines.join("\n")).toContain("spike: no error-rate anomalies");
   });
 });
+
+describe("computeBrief severity, span, and rate", () => {
+  const levels = (errors: number, infos: number): LogEntry[] => {
+    const out: LogEntry[] = [];
+    for (let i = 0; i < errors; i++) {
+      out.push(at("2026-08-20T09:00:00Z", "ERROR", `boom ${i}`));
+    }
+    for (let i = 0; i < infos; i++) {
+      out.push(at("2026-08-20T09:00:00Z", "INFO", `tick ${i}`));
+    }
+    return out;
+  };
+
+  test("classifies severity from the error rate", () => {
+    expect(computeBrief(levels(11, 89)).severity).toBe("critical"); // 11%
+    expect(computeBrief(levels(3, 97)).severity).toBe("elevated"); // 3%
+    expect(computeBrief(levels(2, 98)).severity).toBe("ok"); // exactly 2%
+    expect(computeBrief(levels(0, 10)).severity).toBe("ok");
+    expect(computeBrief([]).severity).toBe("unknown");
+  });
+
+  test("computes span and entries-per-minute", () => {
+    const brief = computeBrief(incidentFixture());
+    expect(brief.spanMs).toBe(750_000); // 09:00:00 → 09:12:30
+    expect(brief.ratePerMin).toBeCloseTo(0.72); // 9 entries over 12.5 min
+  });
+
+  test("--after/--before bound the analyzed window", () => {
+    const after = computeBrief(incidentFixture(), { after: "2026-08-20T09:11:00Z" });
+    expect(after.totalLines).toBe(3);
+    expect(after.levels.ERROR).toBe(2);
+    expect(after.timeRange.first).toBe("2026-08-20T09:11:00.000Z");
+    expect(after.errorRate).toBeCloseTo(2 / 3);
+
+    const before = computeBrief(incidentFixture(), { before: "2026-08-20T09:01:00Z" });
+    expect(before.totalLines).toBe(6);
+    expect(before.levels.ERROR).toBe(5);
+    // Gaps use a 1ms threshold, so the 10s silences inside the window count.
+    expect(before.longestGapMs).toBe(10_000);
+  });
+
+  test("window drops timestamp-less entries like makeFilter does", () => {
+    const noTs: LogEntry = { ...at("2026-08-20T09:00:00Z", "ERROR", "boom"), timestamp: null };
+    const brief = computeBrief([at("2026-08-20T09:00:00Z", "INFO", "kept"), noTs], {
+      after: "2026-08-20T08:00:00Z",
+    });
+    expect(brief.totalLines).toBe(1);
+    expect(brief.levels.INFO).toBe(1);
+  });
+});
+
+describe("renderBrief headline and hints", () => {
+  test("leads with the severity marker, span, and rate", () => {
+    const lines = renderBrief("app.log", computeBrief(incidentFixture()));
+    expect(lines[0]).toContain("● CRITICAL");
+    expect(lines[0]).toContain("9 lines");
+    expect(lines[0]).toContain("09:00:00 → 09:12:30 (12m 30s)");
+    expect(lines[0]).toContain("77.8% errors");
+    expect(lines[0]).toContain("0.7/min");
+  });
+
+  test("renders a placeholder when no error groups exist", () => {
+    const lines = renderBrief("app.log", computeBrief([
+      at("2026-08-20T09:00:00Z", "INFO", "all good"),
+      at("2026-08-20T09:00:01Z", "INFO", "still good"),
+    ]));
+    expect(lines.join("\n")).toContain("top errors: none");
+  });
+
+  test("hints at WARN groups when warnings dominate without a spike", () => {
+    const warnings: LogEntry[] = Array.from({ length: 6 }, (_, i) =>
+      at(`2026-08-20T09:0${i}:00Z`, "WARN", `slow query ${i}`),
+    );
+    warnings.push(at("2026-08-20T09:07:00Z", "INFO", "tick"));
+    warnings.push(at("2026-08-20T09:08:00Z", "INFO", "tock"));
+    const lines = renderBrief("app.log", computeBrief(warnings));
+    expect(lines.join("\n")).toContain("note: no error spike but 6 warnings");
+  });
+});
+
+describe("renderBriefMarkdown", () => {
+  test("renders the incident table and sections", () => {
+    const md = renderBriefMarkdown("app.log", computeBrief(incidentFixture()));
+    expect(md).toContain("# logscope brief — app.log");
+    expect(md).toContain("| Severity | **CRITICAL** |");
+    expect(md).toContain("| Lines | 9 (77.8% errors) |");
+    expect(md).toContain("| Range | 2026-08-20T09:00:00.000Z → 2026-08-20T09:12:30.000Z (12m 30s) |");
+    expect(md).toContain("| Rate | 0.7/min |");
+    expect(md).toContain("| Longest silence | 10m 10s |");
+    expect(md).toContain("| Spike | 5 errors @ 2026-08-20T09:00:10.000Z (z=∞) |");
+    expect(md).toContain("## Top Errors");
+    expect(md).toContain("1. ×6 `Payment failed for order 8846`");
+    expect(md).toContain("## Latency");
+    expect(md).toContain("p50 300ms");
+  });
+
+  test("renders n/a rows for empty input", () => {
+    const md = renderBriefMarkdown("empty.log", computeBrief([]));
+    expect(md).toContain("| Severity | **UNKNOWN** |");
+    expect(md).toContain("| Range | n/a (n/a) |");
+    expect(md).toContain("| Rate | n/a/min |");
+    expect(md).toContain("| Spike | none |");
+    expect(md).not.toContain("## Top Errors");
+    expect(md).not.toContain("## Latency");
+  });
+});
+

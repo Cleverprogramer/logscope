@@ -127,10 +127,10 @@ and time filters; `stats --json` is intended for scripts.
 
 ### Time windows — `--after` and `--before`
 
-`read`, `stats`, `watch`, `latency`, and `report` accept `--after` and
-`--before` to slice an incident window out of longer-lived logs. Both flags
-accept relative durations (measured back from now) or absolute ISO dates,
-and bounds are inclusive:
+`read`, `stats`, `watch`, `latency`, `brief`, and `report` accept `--after`
+and `--before` to slice an incident window out of longer-lived logs. Both
+flags accept relative durations (measured back from now) or absolute ISO
+dates, and bounds are inclusive:
 
 ```bash
 logscope read app.log --after 2026-08-20T09:03:00Z --before 2026-08-20T09:40:00Z
@@ -185,15 +185,18 @@ terminals happy.
 
 ```bash
 logscope brief app.log
-logscope brief logs/*.log --top 5 --json
+logscope brief app.log --after 2026-08-20T09:03:00Z --before 2026-08-20T09:40:00Z
+logscope brief logs/*.log --top 5 --markdown
 ```
 
 `brief` composes the offline analysis primitives into a single executive
-summary: totals and covered time range, error rate, the top normalized error
-groups, latency percentiles extracted from message durations, the longest
-silence, and any statistical error-rate spike. It answers "what happened
-here?" in one command — use `--json` to feed the same digest into scripts,
-bots, or ticket templates.
+summary: a severity tier (`critical` >10% errors, `elevated` >2%), totals
+and covered time span with an entries-per-minute rate, the top normalized
+error groups, latency percentiles extracted from message durations, the
+longest silence, and any statistical error-rate spike. It answers "what
+happened here?" in one command — `--markdown` produces a Slack/Jira-friendly
+incident table, `--json` feeds scripts and bots, and `--after`/`--before`
+bound the digest to the exact incident window.
 
 ### `trace` — follow one request
 
