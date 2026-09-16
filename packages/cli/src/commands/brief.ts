@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import chalk from "chalk";
+import { getConfig } from "../config.js";
 import { readLogFiles } from "../reader.js";
 import { groupEntries } from "../grouping/index.js";
 import { extractDurations, summarize, type LatencyStats } from "../analysis/latency.js";
@@ -17,6 +18,10 @@ export interface BriefOptions {
   markdown?: boolean;
   after?: string;
   before?: string;
+  /** Severity cutoffs as fractions of total lines (0-1). */
+  severity?: { critical?: number; elevated?: number };
+  severityCritical?: string;
+  severityElevated?: string;
   exclude?: string[];
 }
 
@@ -40,10 +45,41 @@ export interface BriefReport {
   spike: { from: string; count: number; score: number | null } | null;
 }
 
-function getSeverity(errorRate: number | null): BriefSeverity {
+/** Default severity cutoffs as fractions of total lines. */
+const DEFAULT_THRESHOLDS = { critical: 0.1, elevated: 0.02 };
+
+/**
+ * Resolve and validate severity cutoffs from options/config. Both are
+ * fractions of total lines in (0, 1), and critical must sit above elevated.
+ */
+export function resolveSeverityThresholds(
+  severity?: { critical?: number; elevated?: number },
+): { critical: number; elevated: number } {
+  const critical = severity?.critical ?? DEFAULT_THRESHOLDS.critical;
+  const elevated = severity?.elevated ?? DEFAULT_THRESHOLDS.elevated;
+  for (const [name, value] of [
+    ["severity.critical", critical],
+    ["severity.elevated", elevated],
+  ] as const) {
+    if (!Number.isFinite(value) || value <= 0 || value >= 1) {
+      throw new Error(`Invalid ${name} "${value}". Use a fraction between 0 and 1, e.g. 0.1.`);
+    }
+  }
+  if (critical <= elevated) {
+    throw new Error(
+      `Invalid severity thresholds: critical (${critical}) must be greater than elevated (${elevated}).`,
+    );
+  }
+  return { critical, elevated };
+}
+
+function getSeverity(
+  errorRate: number | null,
+  thresholds: { critical: number; elevated: number },
+): BriefSeverity {
   if (errorRate === null) return "unknown";
-  if (errorRate > 0.1) return "critical";
-  if (errorRate > 0.02) return "elevated";
+  if (errorRate > thresholds.critical) return "critical";
+  if (errorRate > thresholds.elevated) return "elevated";
   return "ok";
 }
 
@@ -114,7 +150,7 @@ export function computeBrief(entries: LogEntry[], options: BriefOptions = {}): B
   }
 
   const errorRate = filtered.length > 0 ? levels.ERROR / filtered.length : null;
-  const severity = getSeverity(errorRate);
+  const severity = getSeverity(errorRate, resolveSeverityThresholds(options.severity));
   const spanMs = first && last ? last.getTime() - first.getTime() : null;
   const ratePerMin = spanMs && spanMs > 0 ? (filtered.length / spanMs) * 60_000 : null;
 
@@ -238,6 +274,15 @@ export function renderBriefMarkdown(file: string, report: BriefReport): string {
 }
 
 export async function briefCommand(files: string[], options: BriefOptions): Promise<void> {
+  const config = getConfig();
+  const configured = { ...config.severity, ...options.severity };
+  options = {
+    ...options,
+    severity: resolveSeverityThresholds({
+      critical: options.severityCritical !== undefined ? Number(options.severityCritical) : configured.critical,
+      elevated: options.severityElevated !== undefined ? Number(options.severityElevated) : configured.elevated,
+    }),
+  };
   const result = await readLogFiles(files, { exclude: options.exclude });
   const report = computeBrief(result.entries, options);
 
@@ -269,6 +314,8 @@ export function registerBriefCommand(program: Command): void {
     .option("--after <when>", 'window lower bound ("30s", "2h", ISO date)')
     .option("--before <when>", 'window upper bound ("30s", "2h", ISO date)')
     .option("--json", "output machine-readable JSON")
+    .option("--severity-critical <fraction>", "critical error-rate cutoff (0 < value < 1; default 0.1)")
+    .option("--severity-elevated <fraction>", "elevated error-rate cutoff (0 < value < 1; default 0.02)")
     .option("--markdown", "output markdown report for incident triage")
     .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: BriefOptions) => {

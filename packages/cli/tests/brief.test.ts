@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeBrief, renderBrief, renderBriefMarkdown } from "../src/commands/brief.js";
+import { computeBrief, renderBrief, renderBriefMarkdown, resolveSeverityThresholds } from "../src/commands/brief.js";
 import type { LogEntry } from "../src/types.js";
 
 const at = (iso: string, level: LogEntry["level"], message: string): LogEntry => ({
@@ -214,6 +214,60 @@ describe("renderBriefMarkdown", () => {
     expect(md).toContain("| Spike | none |");
     expect(md).not.toContain("## Top Errors");
     expect(md).not.toContain("## Latency");
+  });
+});
+
+describe("severity thresholds", () => {
+  const levels = (errors: number, infos: number): LogEntry[] => {
+    const out: LogEntry[] = [];
+    for (let i = 0; i < errors; i++) {
+      out.push(at("2026-08-20T09:00:00Z", "ERROR", `boom ${i}`));
+    }
+    for (let i = 0; i < infos; i++) {
+      out.push(at("2026-08-20T09:00:00Z", "INFO", `tick ${i}`));
+    }
+    return out;
+  };
+
+  test("custom cutoffs flip the classification", () => {
+    // 5% errors: "elevated" at defaults, "critical" once the cutoffs drop.
+    expect(computeBrief(levels(5, 95)).severity).toBe("elevated");
+    const custom = computeBrief(levels(5, 95), { severity: { critical: 0.04, elevated: 0.01 } });
+    expect(custom.severity).toBe("critical");
+  });
+
+  test("one-sided cutoffs keep the other default", () => {
+    // 3% errors stays "elevated" while critical stays at 0.1.
+    expect(computeBrief(levels(3, 97), { severity: { elevated: 0.01 } }).severity).toBe("elevated");
+    // Raising elevated to 0.05 pulls 3% errors down to "ok".
+    expect(computeBrief(levels(3, 97), { severity: { elevated: 0.05 } }).severity).toBe("ok");
+  });
+
+  test("rejects out-of-range and inverted cutoffs", () => {
+    expect(() => computeBrief(levels(1, 1), { severity: { critical: 1.5 } })).toThrow(/severity\.critical/);
+    expect(() => computeBrief(levels(1, 1), { severity: { elevated: 0 } })).toThrow(/severity\.elevated/);
+    expect(() => computeBrief(levels(1, 1), { severity: { critical: 0.02, elevated: 0.02 } })).toThrow(
+      /must be greater than elevated/,
+    );
+  });
+
+  test("markdown and human output honor custom cutoffs", () => {
+    const report = computeBrief(levels(3, 97), { severity: { critical: 0.5, elevated: 0.01 } });
+    expect(renderBrief("app.log", report)[0]).toContain("▲ ELEVATED");
+    expect(renderBriefMarkdown("app.log", report)).toContain("| Severity | **ELEVATED** |");
+  });
+});
+
+describe("resolveSeverityThresholds", () => {
+  test("returns defaults for undefined input", () => {
+    expect(resolveSeverityThresholds()).toEqual({ critical: 0.1, elevated: 0.02 });
+    expect(resolveSeverityThresholds({})).toEqual({ critical: 0.1, elevated: 0.02 });
+  });
+
+  test("rejects non-finite and boundary values", () => {
+    expect(() => resolveSeverityThresholds({ critical: Number.NaN })).toThrow(/severity\.critical/);
+    expect(() => resolveSeverityThresholds({ elevated: -0.1 })).toThrow(/severity\.elevated/);
+    expect(() => resolveSeverityThresholds({ critical: 1 })).toThrow(/severity\.critical/);
   });
 });
 
