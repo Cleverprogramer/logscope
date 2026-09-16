@@ -1,3 +1,4 @@
+import { percentile } from "./latency.js";
 import type { LogEntry, LogLevel } from "../types.js";
 
 /**
@@ -127,3 +128,30 @@ export function buildTraces(entries: LogEntry[], options: BuildTraceOptions = {}
       (b.durationMs ?? -1) - (a.durationMs ?? -1) || b.entries.length - a.entries.length,
   );
 }
+
+export interface TraceAggregate {
+  /** Number of traces in the group set. */
+  count: number;
+  /** Span percentile across traces (null spans excluded). */
+  p50: number | null;
+  p95: number | null;
+  max: number | null;
+}
+
+/**
+ * Span distribution across traces — the summary behind `--aggregate`.
+ * Timestamp-less traces still count toward `count` but contribute no span.
+ */
+export function aggregateTraces(groups: TraceGroup[]): TraceAggregate {
+  const spans = groups
+    .map((group) => group.durationMs)
+    .filter((span): span is number => span !== null)
+    .sort((a, b) => a - b);
+  return {
+    count: groups.length,
+    p50: percentile(spans, 50),
+    p95: percentile(spans, 95),
+    max: spans.length > 0 ? spans[spans.length - 1]! : null,
+  };
+}
+

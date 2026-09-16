@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import chalk from "chalk";
 import { readLogFiles } from "../reader.js";
-import { buildTraces, type TraceGroup } from "../analysis/trace.js";
+import { buildTraces, aggregateTraces, type TraceGroup } from "../analysis/trace.js";
 import { formatDuration } from "../analysis/gaps.js";
 
 export interface TraceOptions {
@@ -13,6 +13,8 @@ export interface TraceOptions {
   limit?: string;
   /** Max entry lines shown per trace. */
   events?: string;
+  /** Rank requests by span instead of printing timelines. */
+  aggregate?: boolean;
   json?: boolean;
   exclude?: string[];
 }
@@ -50,6 +52,32 @@ export function renderTraces(groups: TraceGroup[], eventsPerTrace: number): stri
     lines.push("");
   }
   if (lines.length > 0) lines.pop(); // drop the trailing blank separator
+  return lines;
+}
+
+/**
+ * Aggregate view: span distribution plus a slowest-first ranking table.
+ * Groups must come from buildTraces (already sorted span-desc).
+ */
+export function renderTraceAggregate(groups: TraceGroup[], limit: number): string[] {
+  const agg = aggregateTraces(groups);
+  const fmt = (value: number | null) => (value === null ? "n/a" : formatDuration(value));
+  const lines: string[] = [
+    `${agg.count} traces · span p50 ${fmt(agg.p50)} · p95 ${fmt(agg.p95)} · max ${fmt(agg.max)}`,
+    "",
+  ];
+  const shown = groups.slice(0, limit);
+  const idWidth = Math.min(24, Math.max(2, ...shown.map((group) => group.id.length)));
+  for (const [i, group] of shown.entries()) {
+    lines.push(
+      `${String(i + 1).padStart(3)}. ${group.id.padEnd(idWidth)}  ` +
+        `${String(group.entries.length).padStart(4)} events · ` +
+        `${fmt(group.durationMs)} · ${levelSummary(group)}`,
+    );
+  }
+  if (groups.length > shown.length) {
+    lines.push(`… and ${groups.length - shown.length} more — raise --limit to see them`);
+  }
   return lines;
 }
 
@@ -103,6 +131,13 @@ export async function traceCommand(files: string[], options: TraceOptions): Prom
   if (all.length > shown.length) {
     console.log(chalk.dim(`showing ${shown.length} of ${all.length} traces — raise --limit for more`));
   }
+  if (options.aggregate) {
+    console.log(chalk.bold.underline(`logscope trace — slowest requests in ${files.join(", ")}`));
+    console.log();
+    for (const line of renderTraceAggregate(all, limit)) console.log(line);
+    return;
+  }
+
   console.log();
   for (const line of renderTraces(shown, eventsPerTrace)) console.log(line);
 }
@@ -117,6 +152,7 @@ export function registerTraceCommand(program: Command): void {
     .option("--min-events <n>", "drop traces with fewer events", "2")
     .option("--limit <n>", "max traces to print", "20")
     .option("--events <n>", "max entry lines shown per trace", "10")
+    .option("--aggregate", "rank requests by span instead of printing timelines")
     .option("--json", "output machine-readable JSON")
     .option("--exclude <glob>", "exclude matching input files; repeat or comma-separate", collect, [])
     .action(async (files: string[], options: TraceOptions) => {

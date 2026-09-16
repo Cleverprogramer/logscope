@@ -51,6 +51,7 @@ const CURRENT_FLAGS = [
   "--limit",
   "--events",
   "--id",
+  "--aggregate",
   "--prefix",
   "--interval",
   "--poll-ms",
