@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildTraces, extractTraceId } from "../src/analysis/trace.js";
-import { renderTraces } from "../src/commands/trace.js";
+import { buildTraces, aggregateTraces, extractTraceId } from "../src/analysis/trace.js";
+import { renderTraceAggregate, renderTraces } from "../src/commands/trace.js";
 import type { LogEntry } from "../src/types.js";
 
 const at = (iso: string, level: LogEntry["level"], message: string): LogEntry => ({
@@ -145,6 +145,79 @@ describe("renderTraces", () => {
     const lines = renderTraces(buildTraces([noTs, { ...noTs, message: "request_id=rq y" }]), 5);
     expect(lines[0]).toContain("2 events · no timestamps");
     expect(lines[1]).toContain("--:--:--");
+  });
+});
+
+
+describe("aggregateTraces", () => {
+  const fixture = () =>
+    buildTraces([
+      at("2026-08-20T09:00:10Z", "INFO", "request_id=ra one"),
+      at("2026-08-20T09:00:30Z", "ERROR", "request_id=ra two"),
+      at("2026-08-20T09:01:00Z", "INFO", "request_id=rb one"),
+      at("2026-08-20T09:01:02Z", "INFO", "request_id=rb two"),
+      at("2026-08-20T09:02:00Z", "WARN", "request_id=rc lone"),
+      at("2026-08-20T09:03:00Z", "INFO", "untracked"),
+    ], { minEvents: 2 });
+
+  test("summarizes the span distribution", () => {
+    const agg = aggregateTraces(fixture());
+    // ra spans 20s, rb spans 2s.
+    expect(agg.count).toBe(2);
+    expect(agg.p50).toBe(2000);
+    expect(agg.p95).toBe(20_000);
+    expect(agg.max).toBe(20_000);
+  });
+
+  test("excludes timestamp-less spans but keeps the count", () => {
+    const noTs: LogEntry = { ...at("2026-08-20T09:00:10Z", "INFO", "request_id=rn x"), timestamp: null };
+    const agg = aggregateTraces([
+      ...fixture(),
+      ...buildTraces([noTs, { ...noTs, message: "request_id=rn y" }]),
+    ]);
+    expect(agg.count).toBe(3);
+    expect(agg.p50).toBe(2000);
+    expect(agg.max).toBe(20_000);
+  });
+
+  test("returns null percentiles without any spans", () => {
+    const agg = aggregateTraces([]);
+    expect(agg.count).toBe(0);
+    expect(agg.p50).toBeNull();
+    expect(agg.p95).toBeNull();
+    expect(agg.max).toBeNull();
+  });
+});
+
+describe("renderTraceAggregate", () => {
+  const groups = buildTraces([
+    at("2026-08-20T09:00:10Z", "INFO", "request_id=ra one"),
+    at("2026-08-20T09:00:30Z", "ERROR", "request_id=ra two"),
+    at("2026-08-20T09:01:00Z", "INFO", "request_id=rb one"),
+    at("2026-08-20T09:01:02Z", "INFO", "request_id=rb two"),
+  ]);
+
+  test("renders summary plus slowest-first ranking", () => {
+    const lines = renderTraceAggregate(groups, 10);
+    expect(lines[0]).toContain("2 traces · span p50 2s · p95 20s · max 20s");
+    expect(lines[2]).toContain("1. ra");
+    expect(lines[2]).toContain("2 events · 20s · 1 error, 1 info");
+    expect(lines[3]).toContain("2. rb");
+    expect(lines[3]).toContain("2 events · 2s");
+  });
+
+  test("caps rows and hints at the remainder", () => {
+    const lines = renderTraceAggregate([...groups, ...groups], 2);
+    expect(lines[2]).toContain("1. ra");
+    expect(lines[3]).toContain("2. rb");
+    expect(lines.join("\n")).toContain("… and 2 more");
+  });
+
+  test("shows n/a span for timestamp-less traces", () => {
+    const noTs: LogEntry = { ...at("2026-08-20T09:00:10Z", "INFO", "request_id=rn x"), timestamp: null };
+    const lines = renderTraceAggregate(buildTraces([noTs, { ...noTs, message: "request_id=rn y" }]), 5);
+    expect(lines[0]).toContain("p50 n/a");
+    expect(lines[2]).toContain("· n/a · 2 info");
   });
 });
 

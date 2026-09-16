@@ -203,13 +203,16 @@ bound the digest to the exact incident window.
 ```bash
 logscope trace app.log --min-events 2
 logscope trace app.log --id 'session=([\w-]+)' --limit 5 --json
+logscope trace app.log --aggregate --limit 10
 ```
 
 `trace` extracts correlation IDs from log lines — `request_id=…`,
 `traceId=…`, UUIDs, long hex hashes, or `[bracket-tokens]` — and prints one
 timeline per ID ordered by timestamp, with the event count, span, and level
 breakdown. Pass `--id <regex>` when your app uses its own format (the first
-capture group wins), and `--min-events` to hide single-line noise.
+capture group wins), and `--min-events` to hide single-line noise. With
+`--aggregate`, timelines collapse into a span distribution (p50/p95/max)
+plus a slowest-first ranking table, so outliers surface without scrolling.
 
 ### `advise`, `explain`, and `diff`
 
