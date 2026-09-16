@@ -187,6 +187,7 @@ terminals happy.
 logscope brief app.log
 logscope brief app.log --after 2026-08-20T09:03:00Z --before 2026-08-20T09:40:00Z
 logscope brief logs/*.log --top 5 --markdown
+logscope brief app.log --severity-critical 0.25 --severity-elevated 0.05 --json
 ```
 
 `brief` composes the offline analysis primitives into a single executive
@@ -326,6 +327,10 @@ user-wide defaults). A working example:
   "tz": "UTC",
   "theme": "nord",
   "timeFormat": "HH:mm:ss.SSS",
+  "severity": {
+    "critical": 0.25,
+    "elevated": 0.05
+  },
   "colors": {
     "error": "red",
     "warn": "yellow",
@@ -341,6 +346,16 @@ user-wide defaults). A working example:
 Supported panel names are `stats`, `rate`, `groups`, and `entries`. Explicit
 CLI flags always override configuration. Invalid JSON, unknown themes, or
 duplicate/unknown panel names fail fast with a useful error.
+
+The `brief` severity cutoffs default to `critical` above 10% errors and
+`elevated` above 2%. Set `severity.critical` / `severity.elevated` in
+`.logscoperc` (fractions of total lines between 0 and 1), or override a single
+run with `--severity-critical` / `--severity-elevated`; explicit flags win and
+both values must satisfy `1 > critical > elevated > 0`. A rate exactly equal
+to a cutoff stays in the lower tier; empty input remains `unknown`. Each flag
+overrides only its corresponding configured cutoff. The working-directory
+`severity` object replaces the home-directory object; omitted cutoffs then
+use the built-in defaults.
 
 ## Supported input
 

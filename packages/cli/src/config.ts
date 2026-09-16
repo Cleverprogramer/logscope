@@ -17,6 +17,8 @@ export interface LogscopeConfig {
   colors?: ThemeColorOverrides;
   dashboard?: { panels?: DashboardPanel[] };
   timeFormat?: string;
+  /** Brief severity cutoffs as fractions of total lines (0-1). */
+  severity?: { critical?: number; elevated?: number };
 }
 
 const CONFIG_FILENAME = ".logscoperc";
@@ -46,6 +48,19 @@ function readConfigFile(path: string): LogscopeConfig | null {
         const panels = (value as { panels?: unknown }).panels;
         if (Array.isArray(panels) && panels.every((panel) => typeof panel === "string")) {
           config.dashboard = { panels: panels as DashboardPanel[] };
+        }
+      }
+      if (key === "severity" && value && typeof value === "object" && !Array.isArray(value)) {
+        const thresholds: { critical?: number; elevated?: number } = {};
+        const raw = value as Record<string, unknown>;
+        if (typeof raw.critical === "number" && Number.isFinite(raw.critical)) {
+          thresholds.critical = raw.critical;
+        }
+        if (typeof raw.elevated === "number" && Number.isFinite(raw.elevated)) {
+          thresholds.elevated = raw.elevated;
+        }
+        if (thresholds.critical !== undefined || thresholds.elevated !== undefined) {
+          config.severity = thresholds;
         }
       }
     }
