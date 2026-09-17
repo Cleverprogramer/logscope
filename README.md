@@ -363,6 +363,14 @@ use the built-in defaults.
   `2026-08-20 09:00:01 ERROR Payment failed`.
 - JSON Lines with common aliases such as `timestamp`, `time`, `ts`, `level`,
   `severity`, `message`, and `msg`.
+- Docker `json-file` envelopes with string `log` / `time` and `stdout` or
+  `stderr` in `stream`. The message loses only one terminal newline; raw JSON
+  and extra fields (including `stream` and `attrs`) are retained. Severity stays
+  `UNKNOWN` because the output stream alone does not establish severity. Invalid
+  timestamps become null, and timestamp precision is milliseconds. Embedded
+  application JSON is retained as message text, not recursively decoded.
+  Analyze offline copies only: Docker warns against accessing active daemon-managed
+  files ([format documentation](https://docs.docker.com/engine/logging/drivers/json-file/)).
 - Multiple files, shell globs, stdin, and mixed formats in one input.
 
 Naive timestamps are treated as UTC for deterministic results. Use `--tz` to

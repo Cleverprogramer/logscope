@@ -66,6 +66,25 @@ export function parseJsonLine(raw: string): Omit<LogEntry, "line"> | null {
   if (typeof obj !== "object" || obj === null || Array.isArray(obj)) return null;
 
   const record = obj as Record<string, unknown>;
+
+  // Docker json-file envelopes carry transport fields, not application severity.
+  // Require the complete shape so an unrelated `log` field is not misclassified.
+  if (
+    typeof record.log === "string" &&
+    (record.stream === "stdout" || record.stream === "stderr") &&
+    typeof record.time === "string"
+  ) {
+    const { log, time, ...metadata } = record;
+    return {
+      raw,
+      timestamp: parseTimestamp(time),
+      level: "UNKNOWN",
+      message: log.replace(/\r?\n$/, ""),
+      metadata,
+      unparsed: false,
+    };
+  }
+
   const level = normalizeLevel(pick(record, ALIASES.level));
   const messageValue = pick(record, ALIASES.message);
 
